@@ -33,13 +33,6 @@ Jag bygger webbapplikationer – från gränssnitt i HTML, CSS och JavaScript ti
 | [InfoScreen](https://github.com/rahmatshafaei/InfoScreen) | Infoskärm | JavaScript |
 | [phpcal](https://github.com/rahmatshafaei/phpcal) | Kalender byggd i PHP | PHP |
 
-## GitHub-statistik
-
-<p>
-  <img height="165" src="https://github-readme-stats.vercel.app/api?username=rahmatshafaei&show_icons=true&hide_border=true" alt="GitHub-statistik">
-  <img height="165" src="https://github-readme-stats.vercel.app/api/top-langs/?username=rahmatshafaei&layout=compact&hide_border=true" alt="Mest använda språk">
-</p>
-
 ## Kontakt
 
 Hör gärna av dig via [X](https://x.com/rahmatshafaye) eller genom att öppna ett ärende i något av mina repon.
