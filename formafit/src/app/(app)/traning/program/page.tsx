@@ -7,7 +7,7 @@ import { EmptyState, PageHeader } from "@/components/ui/feedback";
 import { requireAuth } from "@/lib/auth";
 import { SPLIT_LABELS } from "@/lib/labels";
 import { PROGRAM_TEMPLATES } from "@/lib/workout/templates";
-import { NewProgramButton, TemplateButton } from "./program-buttons";
+import { NewProgramButton, TemplateButton, UserTemplateButton } from "./program-buttons";
 
 export const metadata: Metadata = { title: "Träningsprogram" };
 
@@ -15,11 +15,12 @@ export default async function ProgramsPage() {
   const auth = await requireAuth();
   const { data } = await auth.supabase
     .from("workout_programs")
-    .select("id, name, split_type, is_active, source, program_days(is_rest_day)")
+    .select("id, name, split_type, is_active, is_template, source, program_days(is_rest_day)")
     .eq("user_id", auth.userId)
     .order("is_active", { ascending: false })
     .order("updated_at", { ascending: false });
-  const programs = data ?? [];
+  const programs = (data ?? []).filter((p) => !p.is_template);
+  const userTemplates = (data ?? []).filter((p) => p.is_template);
   return (
     <>
       <PageHeader title="Träningsprogram" actions={<NewProgramButton />} />
@@ -53,7 +54,26 @@ export default async function ProgramsPage() {
         <EmptyState className="mb-10" icon={Dumbbell} title="Inga egna program ännu" description="Börja från en mall nedan eller skapa ett tomt program." />
       )}
 
-      <h2 className="mb-3 text-lg font-semibold">Mallar</h2>
+      {userTemplates.length ? (
+        <>
+          <h2 className="mb-3 text-lg font-semibold">Dina mallar</h2>
+          <div className="mb-10 grid gap-4 sm:grid-cols-2">
+            {userTemplates.map((t) => (
+              <Card key={t.id} className="flex flex-col p-5">
+                <Link href={`/traning/program/${t.id}`} className="font-semibold hover:underline">
+                  {t.name}
+                </Link>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {SPLIT_LABELS[t.split_type]} · {t.program_days.filter((d) => !d.is_rest_day).length} träningsdagar
+                </p>
+                <UserTemplateButton programId={t.id} name={t.name.replace(/ \(mall\)$/, "")} />
+              </Card>
+            ))}
+          </div>
+        </>
+      ) : null}
+
+      <h2 className="mb-3 text-lg font-semibold">Färdiga mallar</h2>
       <div className="grid gap-4 sm:grid-cols-2">
         {PROGRAM_TEMPLATES.map((t) => (
           <Card key={t.key} className="flex flex-col p-5">

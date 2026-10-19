@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
 import { Field, Input, Select } from "@/components/ui/input";
 import { SPLIT_LABELS } from "@/lib/labels";
-import { createProgram, createProgramFromTemplate } from "../actions";
+import { createProgram, createProgramFromTemplate, duplicateProgram } from "../actions";
 
 export function NewProgramButton() {
   const router = useRouter();
@@ -69,6 +69,27 @@ export function TemplateButton({ templateKey }: { templateKey: string }) {
           const res = await createProgramFromTemplate(templateKey);
           if (!res.ok) return void toast.error(res.error);
           toast.success("Programmet är skapat – anpassa det fritt");
+          router.push(`/traning/program/${res.data.id}`);
+        })
+      }
+    >
+      <Copy /> Använd mall
+    </Button>
+  );
+}
+
+export function UserTemplateButton({ programId, name }: { programId: string; name: string }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  return (
+    <Button
+      variant="soft"
+      className="mt-4 self-start"
+      loading={pending}
+      onClick={() =>
+        start(async () => {
+          const res = await duplicateProgram({ id: programId, name });
+          if (!res.ok) return void toast.error(res.error);
           router.push(`/traning/program/${res.data.id}`);
         })
       }

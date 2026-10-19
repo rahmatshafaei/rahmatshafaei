@@ -4,6 +4,7 @@ import { z } from "zod";
 import { authedAction, unwrap, UserFacingError } from "@/lib/actions";
 import { isIsoDate } from "@/lib/dates";
 import { removeObjects, uploadImage } from "@/lib/services/storage";
+import type { TablesUpdate } from "@/lib/supabase/database.types";
 import { measurementSchema, uuid } from "@/lib/validation";
 
 function revalidateProgress() {
@@ -11,26 +12,27 @@ function revalidateProgress() {
   revalidatePath("/hem");
 }
 
+/**
+ * Saves a measurement for a date. Fields left empty keep any value already recorded for
+ * that day (e.g. a quick weigh-in is not erased by adding a waist measurement later).
+ */
 export async function saveMeasurement(raw: unknown) {
   return authedAction(async ({ supabase, userId }) => {
     const m = measurementSchema.parse(raw);
-    unwrap(
-      await supabase.from("measurements").upsert(
-        {
-          user_id: userId,
-          measured_on: m.measuredOn,
-          weight_kg: m.weightKg ?? null,
-          waist_cm: m.waistCm ?? null,
-          chest_cm: m.chestCm ?? null,
-          hips_cm: m.hipsCm ?? null,
-          arm_cm: m.armCm ?? null,
-          thigh_cm: m.thighCm ?? null,
-          body_fat_pct: m.bodyFatPct ?? null,
-          notes: m.notes ?? null,
-        },
-        { onConflict: "user_id,measured_on" },
-      ),
-    );
+    const provided = {
+      weight_kg: m.weightKg ?? null,
+      waist_cm: m.waistCm ?? null,
+      chest_cm: m.chestCm ?? null,
+      hips_cm: m.hipsCm ?? null,
+      arm_cm: m.armCm ?? null,
+      thigh_cm: m.thighCm ?? null,
+      body_fat_pct: m.bodyFatPct ?? null,
+      notes: m.notes ?? null,
+    };
+    const changes = Object.fromEntries(Object.entries(provided).filter(([, v]) => v !== null)) as TablesUpdate<"measurements">;
+    const { data: existing } = await supabase.from("measurements").select("id").eq("user_id", userId).eq("measured_on", m.measuredOn).maybeSingle();
+    if (existing) unwrap(await supabase.from("measurements").update(changes).eq("id", existing.id).eq("user_id", userId));
+    else unwrap(await supabase.from("measurements").insert({ user_id: userId, measured_on: m.measuredOn, ...provided }));
     revalidateProgress();
     return null;
   });

@@ -117,6 +117,17 @@ export async function duplicateProgram(raw: unknown) {
   });
 }
 
+/** Saves a copy of a program as a personal template (templates are never active). */
+export async function saveProgramAsTemplate(raw: unknown) {
+  return authedAction(async ({ supabase, userId }) => {
+    const input = z.object({ id: uuid, name: z.string().trim().min(1).max(120) }).parse(raw);
+    const id = unwrap(await supabase.rpc("duplicate_workout_program", { p_program_id: input.id, p_name: input.name }));
+    unwrap(await supabase.from("workout_programs").update({ is_template: true }).eq("id", id).eq("user_id", userId));
+    revalidateTraining();
+    return { id };
+  });
+}
+
 export async function setActiveProgram(rawId: unknown) {
   return authedAction(async ({ supabase }) => {
     const id = uuid.parse(rawId);

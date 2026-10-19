@@ -33,7 +33,7 @@ export function ChartCard({
         </div>
         <button
           onClick={() => setShowTable((s) => !s)}
-          className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-muted-foreground hover:bg-surface-muted"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 text-xs whitespace-nowrap text-muted-foreground hover:bg-surface-muted"
           aria-pressed={showTable}
         >
           {showTable ? <BarChart3 className="size-3.5" /> : <Table2 className="size-3.5" />}

@@ -30,7 +30,7 @@ export function WeightChart({ weights, weekly }: { weights: { date: string; weig
           <ComposedChart data={data} margin={{ left: -12, right: 8, top: 8 }}>
             <CartesianGrid stroke="var(--border)" vertical={false} />
             <XAxis dataKey="date" tickFormatter={(d) => formatDate(d)} tick={axis} axisLine={false} tickLine={false} minTickGap={24} />
-            <YAxis tick={axis} axisLine={false} tickLine={false} domain={["dataMin - 1", "dataMax + 1"]} tickFormatter={(v) => fmt(v, 0)} />
+            <YAxis tick={axis} axisLine={false} tickLine={false} domain={[(min: number) => Math.floor(min - 1), (max: number) => Math.ceil(max + 1)]} allowDecimals={false} tickFormatter={(v) => fmt(v, 0)} />
             <Tooltip
               contentStyle={tooltipStyle}
               labelFormatter={(d) => formatDate(String(d), { weekday: "short", day: "numeric", month: "short" })}
@@ -57,7 +57,7 @@ export function IntakeChart({ intake, target }: { intake: { date: string; kcal: 
           <BarChart data={intake.map((d) => ({ ...d, kcal: d.kcal || null }))} margin={{ left: -8, right: 8, top: 8 }}>
             <CartesianGrid stroke="var(--border)" vertical={false} />
             <XAxis dataKey="date" tickFormatter={(d) => formatDate(d)} tick={axis} axisLine={false} tickLine={false} minTickGap={24} />
-            <YAxis tick={axis} axisLine={false} tickLine={false} />
+            <YAxis tick={axis} axisLine={false} tickLine={false} domain={[0, (max: number) => Math.ceil(Math.max(max, (target ?? 0) * 1.1) / 100) * 100]} />
             <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "var(--surface-muted)" }} labelFormatter={(d) => formatDate(String(d))} formatter={(v) => [`${Math.round(Number(v))} kcal`, "Intag"]} />
             {target ? <ReferenceLine y={target} stroke="var(--foreground)" strokeDasharray="4 4" strokeOpacity={0.5} /> : null}
             <Bar dataKey="kcal" fill="var(--macro-kcal)" radius={[4, 4, 0, 0]} maxBarSize={18} />
@@ -151,7 +151,7 @@ export function StrengthProgress({ series }: { series: { id: string; name: strin
           <LineChart data={current.points} margin={{ left: -12, right: 8, top: 8 }}>
             <CartesianGrid stroke="var(--border)" vertical={false} />
             <XAxis dataKey="date" tickFormatter={(d) => formatDate(d)} tick={axis} axisLine={false} tickLine={false} minTickGap={24} />
-            <YAxis tick={axis} axisLine={false} tickLine={false} domain={["dataMin - 5", "dataMax + 5"]} tickFormatter={(v) => fmt(v, 0)} />
+            <YAxis tick={axis} axisLine={false} tickLine={false} domain={[(min: number) => Math.floor(min - 5), (max: number) => Math.ceil(max + 5)]} allowDecimals={false} tickFormatter={(v) => fmt(v, 0)} />
             <Tooltip contentStyle={tooltipStyle} labelFormatter={(d) => formatDate(String(d))} formatter={(v) => [`${fmt(Number(v))} kg`, "Uppskattat 1RM"]} />
             <Line dataKey="e1rm" type="monotone" stroke="var(--primary)" strokeWidth={2} dot={{ r: 4, fill: "var(--primary)", stroke: "var(--surface)", strokeWidth: 2 }} />
           </LineChart>
@@ -190,7 +190,7 @@ export function MeasurementChart({ rows }: { rows: { measured_on: string; waist_
             <LineChart data={points} margin={{ left: -12, right: 8, top: 8 }}>
               <CartesianGrid stroke="var(--border)" vertical={false} />
               <XAxis dataKey="date" tickFormatter={(d) => formatDate(d)} tick={axis} axisLine={false} tickLine={false} minTickGap={24} />
-              <YAxis tick={axis} axisLine={false} tickLine={false} domain={["dataMin - 2", "dataMax + 2"]} tickFormatter={(v) => fmt(v, 0)} />
+              <YAxis tick={axis} axisLine={false} tickLine={false} domain={[(min: number) => Math.floor(min - 2), (max: number) => Math.ceil(max + 2)]} allowDecimals={false} tickFormatter={(v) => fmt(v, 0)} />
               <Tooltip contentStyle={tooltipStyle} labelFormatter={(d) => formatDate(String(d))} formatter={(v) => [`${fmt(Number(v))} ${meta[2]}`, meta[1]]} />
               <Line dataKey="value" type="monotone" stroke="var(--macro-fat)" strokeWidth={2} dot={{ r: 4, fill: "var(--macro-fat)", stroke: "var(--surface)", strokeWidth: 2 }} />
             </LineChart>

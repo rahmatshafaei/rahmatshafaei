@@ -57,7 +57,7 @@ export function MeasurementForm({ today }: { today: string }) {
       <Field label="Anteckning" htmlFor="m-notes" optional>
         <Input id="m-notes" value={s.notes} onChange={(e) => setS({ ...s, notes: e.target.value })} />
       </Field>
-      <p className="text-xs text-muted-foreground">Fyll i det du har mätt. En ny mätning samma dag ersätter den tidigare.</p>
+      <p className="text-xs text-muted-foreground">Fyll i det du har mätt. Tomma fält behåller tidigare värden för samma dag.</p>
       <Button type="submit" loading={pending}>
         Spara
       </Button>

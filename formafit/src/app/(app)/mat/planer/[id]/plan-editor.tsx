@@ -16,6 +16,7 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   ArrowLeftRight,
   Check,
+  ImagePlus,
   ChevronDown,
   Clock,
   Copy,
@@ -67,6 +68,7 @@ import {
   reorderMeals,
   saveMealAsTemplate,
   scaleDayToTarget,
+  setMealImage,
   updateIngredient,
   updateMeal,
   updatePlan,
@@ -864,6 +866,7 @@ function EditMealDialog({ meal, onClose, onSaved }: { meal: PlanMeal; onClose: (
     notes: meal.notes ?? "",
   });
   const [pending, start] = useTransition();
+  const [image, setImage] = useState<File | null>(null);
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent title="Redigera måltid">
@@ -874,6 +877,12 @@ function EditMealDialog({ meal, onClose, onSaved }: { meal: PlanMeal; onClose: (
             start(async () => {
               const res = await updateMeal({ id: meal.id, ...s });
               if (!res.ok) return void toast.error(res.error);
+              if (image) {
+                const fd = new FormData();
+                fd.set("image", image);
+                const img = await setMealImage(meal.id, fd);
+                if (!img.ok) return void toast.error(img.error);
+              }
               onClose();
               onSaved();
             });
@@ -905,6 +914,11 @@ function EditMealDialog({ meal, onClose, onSaved }: { meal: PlanMeal; onClose: (
           <Field label="Anteckningar" htmlFor="em-notes" optional>
             <Textarea id="em-notes" rows={2} value={s.notes} onChange={(e) => setS({ ...s, notes: e.target.value })} />
           </Field>
+          <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed p-3 text-sm text-muted-foreground hover:border-primary/40">
+            <ImagePlus className="size-5" aria-hidden />
+            {image ? image.name : meal.imageUrl ? "Byt bild (valfritt)" : "Lägg till en egen bild (valfritt, max 5 MB)"}
+            <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => setImage(e.target.files?.[0] ?? null)} />
+          </label>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
               Avbryt

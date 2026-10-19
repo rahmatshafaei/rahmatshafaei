@@ -8,6 +8,7 @@ import { FOOD_COLUMNS, summarizeFoods } from "@/lib/data/foods";
 import { MEAL_SLOT_LABELS } from "@/lib/labels";
 import { scalePortionsToCalories, toPer100g } from "@/lib/nutrition/engine";
 import { rankSubstitutes } from "@/lib/nutrition/substitutes";
+import { removeObjects, uploadImage } from "@/lib/services/storage";
 import { grams, isoDate, mealPlanCreateSchema, mealSlot, plannedMealUpdateSchema, uuid } from "@/lib/validation";
 
 function revalidatePlan(planId?: string) {
@@ -429,5 +430,22 @@ export async function planDateRange(rawId: unknown) {
     const id = uuid.parse(rawId);
     const plan = unwrap(await supabase.from("meal_plans").select("start_date, num_days").eq("id", id).eq("user_id", userId).single());
     return { start: plan.start_date, end: addDays(plan.start_date, plan.num_days - 1) };
+  });
+}
+
+export async function setMealImage(rawMealId: unknown, formData: FormData) {
+  return authedAction(async (auth) => {
+    const mealId = uuid.parse(rawMealId);
+    const meal = await mealPlanId(auth, mealId);
+    const path = await uploadImage(auth, "user-media", "meals", formData.get("image"));
+    const { data: old } = await auth.supabase.from("planned_meals").select("image_path").eq("id", mealId).single();
+    unwrap(await auth.supabase.from("planned_meals").update({ image_path: path }).eq("id", mealId).eq("user_id", auth.userId));
+    // Copies of the meal may share the old file, so only remove it when nothing else uses it.
+    if (old?.image_path) {
+      const { count } = await auth.supabase.from("planned_meals").select("id", { count: "exact", head: true }).eq("image_path", old.image_path);
+      if (!count) await removeObjects(auth, "user-media", [old.image_path]);
+    }
+    revalidatePlan(meal.plan_id);
+    return null;
   });
 }

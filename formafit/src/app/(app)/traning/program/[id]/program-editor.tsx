@@ -6,7 +6,7 @@ import { useSyncedState } from "@/lib/hooks";
 import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowDown, ArrowUp, BedDouble, Copy, EllipsisVertical, GripVertical, Link2, Pencil, Plus, Sparkles, Star, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, BedDouble, BookmarkPlus, Copy, EllipsisVertical, GripVertical, Link2, Pencil, Plus, Sparkles, Star, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,7 @@ import {
   moveDay,
   removeProgramExercise,
   reorderProgramExercises,
+  saveProgramAsTemplate,
   setActiveProgram,
   updateDay,
   updateProgram,
@@ -98,7 +99,11 @@ export function ProgramEditor({ detail, hasOpenSession }: { detail: ProgramDetai
                 <Sparkles /> Från AI-förslag
               </Badge>
             ) : null}
-            {program.is_active ? (
+            {program.is_template ? (
+              <Badge variant="outline" className="self-center">
+                Mall
+              </Badge>
+            ) : program.is_active ? (
               <Button variant="outline" onClick={() => run(() => deactivateProgram(program.id), "Programmet är inte längre aktivt")}>
                 <Star className="fill-current" /> Aktivt
               </Button>
@@ -120,6 +125,11 @@ export function ProgramEditor({ detail, hasOpenSession }: { detail: ProgramDetai
                 <DropdownMenuItem onSelect={() => setDuplicating(true)}>
                   <Copy /> Kopiera programmet
                 </DropdownMenuItem>
+                {!program.is_template ? (
+                  <DropdownMenuItem onSelect={() => run(() => saveProgramAsTemplate({ id: program.id, name: `${program.name} (mall)` }), "Sparad under Dina mallar")}>
+                    <BookmarkPlus /> Spara som mall
+                  </DropdownMenuItem>
+                ) : null}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem destructive onSelect={() => setConfirm("delete")}>
                   <Trash2 /> Ta bort program

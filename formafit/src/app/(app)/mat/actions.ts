@@ -8,7 +8,7 @@ import { serverEnv } from "@/lib/env";
 import { normalizeIdentity } from "@/lib/grocery/aggregate";
 import { recipeNutrition, toPer100g } from "@/lib/nutrition/engine";
 import { getOffProduct, searchOffProducts, OffUnavailableError } from "@/lib/services/openfoodfacts";
-import { uploadImage } from "@/lib/services/storage";
+import { removeObjects, uploadImage } from "@/lib/services/storage";
 import type { TablesUpdate } from "@/lib/supabase/database.types";
 import type { ExternalFoodResult, FoodSummary } from "@/lib/types";
 import { diaryAddSchema, diaryUpdateSchema, foodSchema, isoDate, mealSlot, recipeSchema, uuid } from "@/lib/validation";
@@ -495,6 +495,18 @@ export async function saveRecipe(rawId: unknown, raw: unknown) {
     );
     revalidateFood();
     return { id: recipeId! };
+  });
+}
+
+export async function setRecipeImage(rawId: unknown, formData: FormData) {
+  return authedAction(async (auth) => {
+    const id = uuid.parse(rawId);
+    const recipe = unwrap(await auth.supabase.from("recipes").select("id, image_path").eq("id", id).eq("user_id", auth.userId).single());
+    const path = await uploadImage(auth, "user-media", "recipes", formData.get("image"));
+    unwrap(await auth.supabase.from("recipes").update({ image_path: path }).eq("id", id).eq("user_id", auth.userId));
+    if (recipe.image_path) await removeObjects(auth, "user-media", [recipe.image_path]);
+    revalidateFood();
+    return null;
   });
 }
 

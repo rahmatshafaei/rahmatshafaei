@@ -1,7 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { ImagePlus, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +14,7 @@ import { MacroLine } from "@/components/nutrition/macro-bar";
 import { MEAL_SLOT_LABELS } from "@/lib/labels";
 import { isValidQuantity, recipeNutrition, toPer100g } from "@/lib/nutrition/engine";
 import type { FoodSummary, MealSlot } from "@/lib/types";
-import { deleteRecipe, saveRecipe } from "../../actions";
+import { deleteRecipe, saveRecipe, setRecipeImage } from "../../actions";
 
 interface RecipeData {
   id: string;
@@ -33,6 +33,7 @@ export function RecipeEditor({ recipe, allergies }: { recipe?: RecipeData; aller
   const [pending, start] = useTransition();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [image, setImage] = useState<File | null>(null);
   const [s, setS] = useState({
     name: recipe?.name ?? "",
     kind: recipe?.kind ?? "recipe",
@@ -67,6 +68,13 @@ export function RecipeEditor({ recipe, allergies }: { recipe?: RecipeData; aller
             ingredients: items.map((i) => ({ foodId: i.food.id, quantityG: i.quantity })),
           });
           if (!res.ok) return void toast.error(res.error);
+          if (image) {
+            const fd = new FormData();
+            fd.set("image", image);
+            const img = await setRecipeImage(res.data.id, fd);
+            if (!img.ok) toast.error(img.error);
+            else setImage(null);
+          }
           toast.success("Sparat");
           if (!recipe) router.replace(`/mat/recept/${res.data.id}`);
           router.refresh();
@@ -132,6 +140,11 @@ export function RecipeEditor({ recipe, allergies }: { recipe?: RecipeData; aller
             <Field label="Anteckningar" htmlFor="r-notes" optional>
               <Textarea id="r-notes" rows={2} value={s.notes} onChange={(e) => setS({ ...s, notes: e.target.value })} />
             </Field>
+            <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed p-3 text-sm text-muted-foreground hover:border-primary/40">
+              <ImagePlus className="size-5" aria-hidden />
+              {image ? image.name : "Ladda upp en egen bild på rätten (valfritt, max 5 MB)"}
+              <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => setImage(e.target.files?.[0] ?? null)} />
+            </label>
           </CardContent>
         </Card>
       </div>
