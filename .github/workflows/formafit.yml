@@ -1,0 +1,84 @@
+name: FormaFit
+
+on:
+  push:
+    branches: [main, "claude/**"]
+    paths: ["formafit/**", ".github/workflows/formafit.yml"]
+  pull_request:
+    paths: ["formafit/**", ".github/workflows/formafit.yml"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: formafit-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: formafit
+
+jobs:
+  checks:
+    name: Lint, types and unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: formafit/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+
+  database-and-e2e:
+    name: Integration and E2E tests (local Supabase)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: formafit/package-lock.json
+      - run: npm ci
+
+      - name: Start Supabase and apply migrations
+        run: npx supabase start -x imgproxy,vector,logflare,supavisor,postgres-meta,studio,edge-runtime,realtime
+
+      # Keys of the throwaway local stack only; no repository secrets are used.
+      - name: Write .env.local for the local stack
+        run: |
+          eval "$(npx supabase status -o env | grep -E '^(API_URL|PUBLISHABLE_KEY|SERVICE_ROLE_KEY)=')"
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+            echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$PUBLISHABLE_KEY"
+            echo "NEXT_PUBLIC_SITE_URL=http://localhost:3000"
+            echo "OPENFOODFACTS_ENABLED=false"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+          } > .env.local
+
+      - name: Generated database types are up to date
+        run: |
+          npx supabase gen types typescript --local > /tmp/database.types.ts
+          diff -u src/lib/supabase/database.types.ts /tmp/database.types.ts
+
+      - run: npm run test:integration
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - run: npm run test:e2e
+
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: formafit/test-results
+          retention-days: 7
