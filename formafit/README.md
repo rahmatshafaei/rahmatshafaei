@@ -9,6 +9,8 @@ FormaFit is a Swedish-language, mobile-first fitness and nutrition platform. It 
 5. **Grocery lists** – generated from a saved plan and date range, grouped by store section, with a shopping mode, search, sharing and printing.
 6. **Progress tracking** – weight with weekly averages, body measurements, intake, consistency, strength curves, private progress photos and weekly summaries.
 
+It also includes data export and self-service account deletion, a light and dark theme (follows the system or a per-device choice) and an installable web app manifest.
+
 Units are kilograms, centimetres and grams. Dates follow the Europe/Stockholm calendar.
 
 ---
@@ -58,6 +60,7 @@ Useful scripts:
 | `npm run db:reset` | Re-create the local database from the migrations |
 | `npm run db:types` | Regenerate `src/lib/supabase/database.types.ts` |
 | `python3 scripts/generate-starter-data.py` | Regenerate the starter-data migration |
+| `node scripts/generate-icons.mjs` | Regenerate the PNG app icons from `src/app/icon.svg` |
 
 ### Environment variables
 
@@ -93,7 +96,8 @@ formafit/
 │     ├─ 20261019000200_rls_policies.sql    Row Level Security for every table
 │     ├─ 20261019000300_functions.sql       transactional SQL functions (security invoker)
 │     ├─ 20261019000400_storage.sql         private buckets + per-user storage policies
-│     └─ 20261019000500_starter_data.sql    starter foods and exercises (generated)
+│     ├─ 20261019000500_starter_data.sql    starter foods and exercises (generated)
+│     └─ 20261020000100_account_deletion.sql  delete_my_account() for self-service deletion
 ├─ scripts/generate-starter-data.py
 ├─ src/
 │  ├─ proxy.ts                         session refresh + route protection (Next 16 "proxy")
@@ -109,7 +113,9 @@ formafit/
 │  │  │  ├─ framsteg/                  progress overview, measurements, photos
 │  │  │  ├─ coach/                     AI coach UI
 │  │  │  └─ profil/                    profile, targets, preferences
-│  │  └─ api/coach/route.ts            streaming coach endpoint
+│  │  ├─ api/coach/route.ts            streaming coach endpoint
+│  │  ├─ api/export/route.ts           JSON export of all of the user's own data
+│  │  └─ manifest.ts                   web app manifest (icons in public/ and app/apple-icon.png)
 │  ├─ components/                      ui/ (design system), nutrition/, workout/, charts/, coach/, layout/
 │  └─ lib/
 │     ├─ nutrition/                    engine.ts, targets.ts, allergens.ts, substitutes.ts (pure, tested)
@@ -123,7 +129,7 @@ formafit/
 │     └─ supabase/                     server/browser/proxy clients + generated DB types
 └─ tests/
    ├─ unit/                            component tests
-   ├─ integration/database.test.ts     RLS, storage, SQL functions with two real users
+   ├─ integration/                     RLS, storage, SQL functions and account deletion with real users
    └─ e2e/                             Playwright specs + mock-anthropic.mjs
 ```
 
@@ -145,6 +151,7 @@ Key design decisions:
 - Storage buckets are private. Policies only allow objects under `<uid>/…`. Uploads are checked by magic bytes and size on the server (not by the client-declared MIME type) as well as by the bucket's limits. Photos are shown via short-lived signed URLs.
 - Logout is POST-only, redirects are restricted to relative in-app paths, password-reset responses do not reveal whether an account exists, and the app sets security headers (`X-Frame-Options`, `nosniff`, a strict referrer policy and a permissions policy).
 - AI calls are server-side only. A per-user quota is enforced in the database with an append-only log that users cannot delete from.
+- **Data export and deletion** (Profil → Dina data): the export downloads every own row as JSON (paged past PostgREST's 1000-row limit). Deletion requires the current password, which is checked with a separate stateless client so session cookies are untouched, plus typing RADERA. It then removes all uploaded files through the Storage API and calls `delete_my_account()`, which deletes the auth user so every private table cascades.
 
 ### Nutrition calculations
 
@@ -157,6 +164,10 @@ nutrient_amount = nutrient_per_100g × quantity_g / 100
 Values keep full floating-point precision and are rounded only for display. Unknown nutrients are never guessed: they count as 0, and the total is flagged as incomplete in the UI. Quantities must be in the range 0 < q ≤ 5000 g.
 
 Energy targets (`src/lib/nutrition/targets.ts`) use **Mifflin–St Jeor**: `10·kg + 6.25·cm − 5·age + s`, where s is +5 (male), −161 (female), or −78 (unspecified, flagged as less precise). Activity multipliers are 1.2 / 1.375 / 1.55 / 1.725 / 1.9. The goal adjustment is −20 % for fat loss, +10 % for muscle gain and 0 for maintenance, with a floor of max(BMR, 1200 kcal). Protein is 2.0 / 1.8 / 1.6 g per kg of reference weight (the weight at BMI 27 when BMI > 30), fat is ≥ 25 % of energy, and carbohydrates fill the rest. The UI states that these are starting points. Users can override any value, and a recalculation is always previewed and must be confirmed.
+
+### Design system and themes
+
+Colours are CSS tokens in `src/app/globals.css`, with a light set and a dark set. The dark set applies under `prefers-color-scheme: dark` unless the user picks a theme in Profil (stored per device in `localStorage` and applied before first paint, so the page never flashes the wrong theme). Buttons use a deeper green (`--primary-strong`) that meets WCAG AA contrast with their text, while the fresh `--primary` green is used for rings, marks and accents. The macro/chart palettes for both themes pass a colour-vision-deficiency and contrast validator, and charts always have a legend (for two or more series) and a table view.
 
 ### Food data
 
@@ -183,16 +194,16 @@ The app does **not** invent verified nutrition facts:
 | --- | --- | --- |
 | Lint | `npm run lint` | 0 problems |
 | Type check | `npm run typecheck` | passes |
-| Unit + component | `npm test` | 13 files, 114 tests passed |
-| Integration (local Supabase) | `npm run test:integration` | 17 tests passed |
-| E2E (Playwright, mobile + desktop) | `npm run test:e2e` | 12 tests passed (AI specs against the mock server) |
+| Unit + component | `npm test` | 13 files, 115 tests passed |
+| Integration (local Supabase) | `npm run test:integration` | 2 files, 19 tests passed |
+| E2E (Playwright, mobile + desktop) | `npm run test:e2e` | 13 tests passed (AI specs against the mock server) |
 | Production build | `npm run build` | succeeds |
 
 Unit tests cover portion scaling, meal/recipe/daily totals, invalid quantities, missing nutrition data, target calculation, allergen suitability, substitutions, grocery aggregation (identity normalisation, raw vs cooked, incompatible units, rounding), set validation, PRs, progression, weekly summaries, AI draft resolution, coach context selection, the Open Food Facts parser, upload validation, error mapping and UI components.
 
-Integration tests use two real users to check cross-user isolation (profiles, foods, diary, plans, sessions, storage), idempotent "mark as eaten", history immutability, plan copying, session rules, quotas and storage type restrictions.
+Integration tests use real users to check account deletion (with test-only service credentials, they confirm that no private row survives in any table), cross-user isolation (profiles, foods, diary, plans, sessions, storage), idempotent "mark as eaten", history immutability, plan copying, session rules, quotas and storage type restrictions.
 
-The E2E specs cover registration/login/logout/protected routes, password recovery via the email link, logging and editing diary entries, creating a meal plan with idempotent "eaten" and grocery aggregation, running and completing a workout with persistence across reloads, progress views, and AI meal-plan generation, coach chat and AI workout generation. The AI specs also assert the request contract (structured output format, fallbacks beta, no database IDs, allergy filtering in the prompt). With `ANTHROPIC_API_KEY` set, the same specs run against the real API. That configuration was **not** run here because no key was available.
+The E2E specs cover registration/login/logout/protected routes, password recovery via the email link, logging and editing diary entries, creating a meal plan with idempotent "eaten" and grocery aggregation, running and completing a workout with persistence across reloads, progress views, data export and account deletion (wrong password rejected, uploaded photo removed, login impossible afterwards), and AI meal-plan generation, coach chat and AI workout generation. The AI specs also assert the request contract (structured output format, fallbacks beta, no database IDs, allergy filtering in the prompt). With `ANTHROPIC_API_KEY` set, the same specs run against the real API. That configuration was **not** run here because no key was available.
 
 ---
 
@@ -203,4 +214,4 @@ The E2E specs cover registration/login/logout/protected routes, password recover
 - **Exercise images/videos:** none are bundled because no licensed media source was available. Users can upload their own images and add video links.
 - **Price estimates** are manual only. No retailer integration exists, and prices are never fabricated.
 - **Live AI:** the integration was verified against a protocol-compatible mock, not the real Claude API, in this environment.
-- **Not implemented:** account deletion from the UI (it needs a server-side admin flow), offline support/PWA, push notifications, and a dark theme.
+- **Not implemented:** offline support (the app is installable but has no service worker) and push notifications.

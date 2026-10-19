@@ -79,12 +79,12 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
             </CardContent>
           </Card>
 
-          <Card className="overflow-hidden border-0 bg-[#13261b] text-white">
+          <Card className="overflow-hidden border-0 bg-brand-ink text-white">
             <CardContent className="relative pt-5">
               <div aria-hidden className="absolute -top-16 -right-10 size-48 rounded-full bg-[radial-gradient(circle,rgba(24,160,88,0.5),transparent_65%)]" />
               <div className="relative flex items-center gap-3">
                 <div className="flex size-11 items-center justify-center rounded-2xl bg-white/10">
-                  <Bot className="size-6 text-[#7ee2a8]" aria-hidden />
+                  <Bot className="size-6 text-brand-ink-accent" aria-hidden />
                 </div>
                 <div>
                   <p className="font-semibold">Din AI-coach</p>
@@ -98,7 +98,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
                   </Link>
                 ))}
               </div>
-              <Button asChild className="relative mt-4 bg-white text-[#13261b] hover:bg-white/90">
+              <Button asChild className="relative mt-4 bg-white text-brand-ink hover:bg-white/90">
                 <Link href="/coach">
                   <Sparkles /> Öppna coachen
                 </Link>

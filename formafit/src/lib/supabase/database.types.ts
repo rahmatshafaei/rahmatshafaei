@@ -607,6 +607,9 @@ isOneToOne: false
 "create_workout_program":
 { Args: { "p_program": Json }; Returns: string
                            },
+"delete_my_account":
+{ Args: Record<PropertyKey, never>; Returns: undefined
+                           },
 "duplicate_meal_plan":
 { Args: { "p_name": string,"p_plan_id": string,"p_start_date": string }; Returns: string
                            },

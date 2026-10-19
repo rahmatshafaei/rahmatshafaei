@@ -27,7 +27,7 @@ export function MacroBar({
           <span className={cn("size-2 rounded-full", meta.dot)} aria-hidden />
           {meta.label}
         </span>
-        <span className="tabular text-muted-foreground">
+        <span className="tabular whitespace-nowrap text-muted-foreground">
           <span className="font-semibold text-foreground">{formatNutrient(value, macro)}</span> / {Math.round(target)} g
         </span>
       </div>

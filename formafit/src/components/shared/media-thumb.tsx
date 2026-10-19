@@ -40,7 +40,7 @@ export function MediaThumb({
   const Icon = kind === "exercise" ? Dumbbell : kind === "meal" ? Salad : CATEGORY_ICONS[category ?? "other"];
   return (
     <div
-      className={cn(dims, "flex shrink-0 items-center justify-center bg-gradient-to-br from-primary-soft to-[#f4efe4] text-primary-strong", className)}
+      className={cn(dims, "flex shrink-0 items-center justify-center bg-gradient-to-br from-primary-soft to-surface-warm text-primary-strong", className)}
       aria-hidden
     >
       <Icon className={size === "lg" ? "size-10 opacity-70" : "size-5 opacity-80"} />

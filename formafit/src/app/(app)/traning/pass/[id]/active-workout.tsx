@@ -189,8 +189,8 @@ export function ActiveWorkout({ detail }: { detail: SessionDetail }) {
 
       {rest.active ? (
         <div className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-40 px-4 lg:bottom-6 lg:left-64">
-          <div className="mx-auto flex max-w-md items-center gap-3 rounded-full bg-[#13261b] py-2 pr-2 pl-4 text-white shadow-[var(--shadow-float)]" role="timer" aria-live="polite">
-            <Timer className="size-5 text-[#7ee2a8]" aria-hidden />
+          <div className="mx-auto flex max-w-md items-center gap-3 rounded-full border border-white/10 bg-brand-ink py-2 pr-2 pl-4 text-white shadow-[var(--shadow-float)]" role="timer" aria-live="polite">
+            <Timer className="size-5 text-brand-ink-accent" aria-hidden />
             <span className="flex-1 text-lg font-semibold tabular">{formatDuration(rest.remaining)}</span>
             <Button size="sm" variant="ghost" className="text-white hover:bg-white/10" onClick={() => rest.add(-15)} aria-label="15 sekunder kortare vila">
               <Minus /> 15
@@ -262,7 +262,7 @@ function ExerciseCard({
             <Link href={`/traning/ovningar/${ex.exercise_id}`} className="font-semibold hover:underline">
               {ex.exercise.name}
             </Link>
-            {ex.superset_group ? <Badge className="bg-[#efe7fb] text-macro-fat">Superset {ex.superset_group}</Badge> : null}
+            {ex.superset_group ? <Badge className="bg-superset-soft text-macro-fat">Superset {ex.superset_group}</Badge> : null}
             {allDone ? (
               <Badge variant="primary">
                 <Check /> Klar
@@ -388,7 +388,7 @@ function SetRowInput({
 
   return (
     <div className={cn("grid grid-cols-[2rem_1fr_1fr_3rem] items-center gap-2", set.is_completed && "opacity-90")}>
-      <span className={cn("flex size-7 items-center justify-center rounded-lg text-sm font-semibold", set.is_completed ? "bg-primary text-white" : "bg-surface-muted")}>{index + 1}</span>
+      <span className={cn("flex size-7 items-center justify-center rounded-lg text-sm font-semibold", set.is_completed ? "bg-primary-strong text-primary-foreground" : "bg-surface-muted")}>{index + 1}</span>
       <input
         inputMode="decimal"
         aria-label={`Vikt set ${index + 1}`}

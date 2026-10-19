@@ -3,13 +3,20 @@
 
 /*
  * FormaFit design tokens.
- * Warm off-white surfaces, charcoal text and a fresh green accent.
- * Macro colours are used consistently across rings, bars and charts.
+ * Warm off-white surfaces, charcoal text and a fresh green accent; a matching dark theme
+ * follows the system setting unless the user picks one (html[data-theme]).
+ * Macro colours are used consistently across rings, bars and charts and are validated for
+ * colour-vision deficiency and contrast against each theme's surface.
+ * `--primary` is the accent for rings and marks; buttons use `--primary-strong`, which meets
+ * WCAG AA contrast with `--primary-foreground`.
  */
 :root {
+  color-scheme: light;
   --background: #faf8f4;
   --surface: #ffffff;
   --surface-muted: #f3f0ea;
+  --surface-muted-hover: #ebe7df;
+  --surface-warm: #f4efe4;
   --foreground: #1f2328;
   --muted-foreground: #646a73;
   --border: #e7e2d9;
@@ -17,44 +24,168 @@
 
   --primary: #18a058;
   --primary-strong: #0f7f45;
+  --primary-hover: #0b6a39;
   --primary-soft: #e6f5ec;
+  --primary-soft-hover: #d6efe0;
   --primary-foreground: #ffffff;
 
+  /* Always-dark brand panels (coach card, auth panel, rest timer). */
+  --brand-ink: #13261b;
+  --brand-ink-accent: #7ee2a8;
+
   --danger: #c93c3c;
+  --danger-strong: #ad3131;
+  --danger-foreground: #ffffff;
   --danger-soft: #fbeaea;
+  --danger-ink: #8f2727;
+  --danger-border: #f1c9c9;
   --warning: #b7791f;
   --warning-soft: #fdf3e1;
+  --warning-ink: #7a5212;
+  --warning-border: #f3dfb5;
   --info: #2f6fdb;
   --info-soft: #e8f0fc;
+  --info-ink: #1f4fa3;
+  --info-border: #cfdcf5;
+  --superset-soft: #efe7fb;
 
   --macro-kcal: #18a058;
   --macro-protein: #3d7eea;
   --macro-carbs: #b97a12;
   --macro-fat: #9467d8;
 
+  --glow-green: #d9f2e3;
+  --glow-amber: #f8e6c8;
+
   --radius: 1rem;
   --shadow-card: 0 1px 2px rgb(31 35 40 / 0.04), 0 4px 16px rgb(31 35 40 / 0.05);
   --shadow-float: 0 8px 30px rgb(31 35 40 / 0.12);
+}
+
+/* Dark tokens. Duplicated for the system preference and the explicit override. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --background: #121513;
+    --surface: #1b1f1c;
+    --surface-muted: #252a26;
+    --surface-muted-hover: #2d332e;
+    --surface-warm: #232822;
+    --foreground: #ecebe6;
+    --muted-foreground: #a3a9a2;
+    --border: #2f3530;
+    --ring: #34c77b;
+    --primary: #29ad68;
+    --primary-strong: #34c77b;
+    --primary-hover: #52d491;
+    --primary-soft: #16301f;
+    --primary-soft-hover: #1c3b27;
+    --primary-foreground: #052e16;
+    --brand-ink: #0f2017;
+    --brand-ink-accent: #7ee2a8;
+    --danger: #f07171;
+    --danger-strong: #f48b8b;
+    --danger-foreground: #3a0d0d;
+    --danger-soft: #3a1d1d;
+    --danger-ink: #f6b4b4;
+    --danger-border: #5a2a2a;
+    --warning: #e3b04b;
+    --warning-soft: #362a12;
+    --warning-ink: #f0cf8a;
+    --warning-border: #57441c;
+    --info: #7aa7f5;
+    --info-soft: #1a2740;
+    --info-ink: #b4cdf8;
+    --info-border: #2b3f63;
+    --superset-soft: #2a2140;
+    --macro-kcal: #29ad68;
+    --macro-protein: #5a8de3;
+    --macro-carbs: #b8882a;
+    --macro-fat: #9b7add;
+    --glow-green: #143222;
+    --glow-amber: #33281a;
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 16px rgb(0 0 0 / 0.25);
+    --shadow-float: 0 8px 30px rgb(0 0 0 / 0.45);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #121513;
+  --surface: #1b1f1c;
+  --surface-muted: #252a26;
+  --surface-muted-hover: #2d332e;
+  --surface-warm: #232822;
+  --foreground: #ecebe6;
+  --muted-foreground: #a3a9a2;
+  --border: #2f3530;
+  --ring: #34c77b;
+  --primary: #29ad68;
+  --primary-strong: #34c77b;
+  --primary-hover: #52d491;
+  --primary-soft: #16301f;
+  --primary-soft-hover: #1c3b27;
+  --primary-foreground: #052e16;
+  --brand-ink: #0f2017;
+  --brand-ink-accent: #7ee2a8;
+  --danger: #f07171;
+  --danger-strong: #f48b8b;
+  --danger-foreground: #3a0d0d;
+  --danger-soft: #3a1d1d;
+  --danger-ink: #f6b4b4;
+  --danger-border: #5a2a2a;
+  --warning: #e3b04b;
+  --warning-soft: #362a12;
+  --warning-ink: #f0cf8a;
+  --warning-border: #57441c;
+  --info: #7aa7f5;
+  --info-soft: #1a2740;
+  --info-ink: #b4cdf8;
+  --info-border: #2b3f63;
+  --superset-soft: #2a2140;
+  --macro-kcal: #29ad68;
+  --macro-protein: #5a8de3;
+  --macro-carbs: #b8882a;
+  --macro-fat: #9b7add;
+  --glow-green: #143222;
+  --glow-amber: #33281a;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 16px rgb(0 0 0 / 0.25);
+  --shadow-float: 0 8px 30px rgb(0 0 0 / 0.45);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
   --color-surface-muted: var(--surface-muted);
+  --color-surface-muted-hover: var(--surface-muted-hover);
+  --color-surface-warm: var(--surface-warm);
   --color-foreground: var(--foreground);
   --color-muted-foreground: var(--muted-foreground);
   --color-border: var(--border);
   --color-ring: var(--ring);
   --color-primary: var(--primary);
   --color-primary-strong: var(--primary-strong);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-soft-hover: var(--primary-soft-hover);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-ink-accent: var(--brand-ink-accent);
+  --color-superset-soft: var(--superset-soft);
   --color-primary-soft: var(--primary-soft);
   --color-primary-foreground: var(--primary-foreground);
   --color-danger: var(--danger);
+  --color-danger-strong: var(--danger-strong);
+  --color-danger-foreground: var(--danger-foreground);
   --color-danger-soft: var(--danger-soft);
+  --color-danger-ink: var(--danger-ink);
+  --color-danger-border: var(--danger-border);
   --color-warning: var(--warning);
   --color-warning-soft: var(--warning-soft);
+  --color-warning-ink: var(--warning-ink);
+  --color-warning-border: var(--warning-border);
   --color-info: var(--info);
   --color-info-soft: var(--info-soft);
+  --color-info-ink: var(--info-ink);
+  --color-info-border: var(--info-border);
   --color-macro-kcal: var(--macro-kcal);
   --color-macro-protein: var(--macro-protein);
   --color-macro-carbs: var(--macro-carbs);
@@ -71,7 +202,6 @@
   }
   html {
     -webkit-text-size-adjust: 100%;
-    color-scheme: light;
   }
   body {
     background: var(--background);

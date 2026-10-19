@@ -108,8 +108,8 @@ export function CoachChat({
   return (
     <div className="flex min-h-[calc(100dvh-12rem)] flex-col lg:min-h-[calc(100dvh-6rem)]">
       <div className="mb-4 flex items-center gap-3">
-        <div className="flex size-10 items-center justify-center rounded-2xl bg-[#13261b]">
-          <Bot className="size-5 text-[#7ee2a8]" aria-hidden />
+        <div className="flex size-10 items-center justify-center rounded-2xl bg-brand-ink">
+          <Bot className="size-5 text-brand-ink-accent" aria-hidden />
         </div>
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-xl font-semibold tracking-tight">{title ?? "AI-coach"}</h1>
@@ -159,13 +159,13 @@ export function CoachChat({
         ) : (
           messages.map((m) => (
             <div key={m.id} className={cn("flex gap-3", m.role === "user" && "flex-row-reverse")}>
-              <div className={cn("flex size-8 shrink-0 items-center justify-center rounded-xl", m.role === "user" ? "bg-surface-muted" : "bg-[#13261b]")} aria-hidden>
-                {m.role === "user" ? <UserRound className="size-4" /> : <Bot className="size-4 text-[#7ee2a8]" />}
+              <div className={cn("flex size-8 shrink-0 items-center justify-center rounded-xl", m.role === "user" ? "bg-surface-muted" : "bg-brand-ink")} aria-hidden>
+                {m.role === "user" ? <UserRound className="size-4" /> : <Bot className="size-4 text-brand-ink-accent" />}
               </div>
               <div
                 className={cn(
                   "max-w-[85%] rounded-3xl px-4 py-3 text-[15px] leading-relaxed",
-                  m.role === "user" ? "rounded-tr-lg bg-primary text-white" : "rounded-tl-lg border bg-surface shadow-[var(--shadow-card)]",
+                  m.role === "user" ? "rounded-tr-lg bg-primary-strong text-primary-foreground" : "rounded-tl-lg border bg-surface shadow-[var(--shadow-card)]",
                 )}
               >
                 <span className="sr-only">{m.role === "user" ? "Du:" : "Coachen:"}</span>

@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/ui/feedback";
 import { requireAuth } from "@/lib/auth";
 import { getPreferences, getProfile, getTargets } from "@/lib/data/profile";
 import { isAiConfigured } from "@/lib/env";
+import { DataCard } from "./data-card";
 import { PreferencesForm, ProfileForm, TargetsCard } from "./profile-forms";
 
 export const metadata: Metadata = { title: "Profil" };
@@ -52,6 +53,7 @@ export default async function ProfilePage() {
               </form>
             </CardContent>
           </Card>
+          <DataCard />
         </div>
       </div>
     </>

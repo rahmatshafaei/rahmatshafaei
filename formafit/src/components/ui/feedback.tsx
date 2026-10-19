@@ -44,9 +44,9 @@ export function Notice({
   className?: string;
 }) {
   const styles = {
-    info: "bg-info-soft text-[#1f4fa3] border-[#cfdcf5]",
-    warning: "bg-warning-soft text-[#7a5212] border-[#f3dfb5]",
-    danger: "bg-danger-soft text-[#8f2727] border-[#f1c9c9]",
+    info: "bg-info-soft text-info-ink border-info-border",
+    warning: "bg-warning-soft text-warning-ink border-warning-border",
+    danger: "bg-danger-soft text-danger-ink border-danger-border",
   }[variant];
   const Icon = variant === "info" ? Info : AlertTriangle;
   return (

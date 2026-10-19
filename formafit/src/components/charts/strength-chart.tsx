@@ -23,7 +23,7 @@ export function StrengthChart({ data }: { data: { date: string; e1rm: number; to
             <Tooltip
               formatter={(v, name) => [`${Number(v).toLocaleString("sv-SE")} kg`, name === "e1rm" ? "Uppskattat 1RM" : "Tyngsta set"]}
               labelFormatter={(d) => formatDate(String(d), { day: "numeric", month: "long", year: "numeric" })}
-              contentStyle={{ borderRadius: 12, border: "1px solid var(--border)" }}
+              contentStyle={{ borderRadius: 12, border: "1px solid var(--border)", backgroundColor: "var(--surface)", color: "var(--foreground)" }}
             />
             <Line type="monotone" dataKey="e1rm" stroke="var(--primary)" strokeWidth={2} dot={{ r: 4, fill: "var(--primary)", stroke: "var(--surface)", strokeWidth: 2 }} />
             <Line type="monotone" dataKey="top" stroke="var(--macro-protein)" strokeWidth={2} strokeDasharray="4 4" dot={false} />

@@ -334,7 +334,7 @@ function SortableExercise({
       <button className="min-w-0 flex-1 text-left" onClick={onEdit}>
         <span className="flex items-center gap-1.5">
           <span className="truncate font-medium">{pe.exercise.name}</span>
-          {inSuperset ? <Badge className="bg-[#efe7fb] text-macro-fat">Superset {pe.superset_group}</Badge> : null}
+          {inSuperset ? <Badge className="bg-superset-soft text-macro-fat">Superset {pe.superset_group}</Badge> : null}
         </span>
         <span className="block truncate text-xs text-muted-foreground tabular">
           {pe.sets} × {pe.rep_min === pe.rep_max ? pe.rep_min : `${pe.rep_min}–${pe.rep_max}`}

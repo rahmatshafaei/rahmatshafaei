@@ -51,7 +51,7 @@ export function OptionCards<T extends string>({
               aria-hidden
               className={cn(
                 "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border",
-                selected && "border-primary bg-primary text-white",
+                selected && "border-primary-strong bg-primary-strong text-primary-foreground",
               )}
             >
               {selected ? <Check className="size-3.5" /> : null}

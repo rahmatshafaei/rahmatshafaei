@@ -1,9 +1,12 @@
 "use server";
+import { createClient as createStatelessClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { authedAction, unwrap, UserFacingError } from "@/lib/actions";
 import { getLatestWeight } from "@/lib/data/profile";
 import { calculateTargets } from "@/lib/nutrition/targets";
+import { publicEnv } from "@/lib/env";
+import { removeAllUserObjects } from "@/lib/services/storage";
 import { saveCalculatedTargets } from "@/lib/services/targets";
 import { manualTargetsSchema, profileUpdateSchema } from "@/lib/validation";
 import type { AuthContext } from "@/lib/auth";
@@ -114,6 +117,33 @@ export async function updatePreferences(raw: unknown) {
         .eq("user_id", userId),
     );
     revalidatePath("/profil");
+    return null;
+  });
+}
+
+const deleteAccountSchema = z.object({
+  password: z.string().min(1, "Ange ditt lösenord."),
+  confirm: z.literal("RADERA", { message: "Skriv RADERA för att bekräfta." }),
+});
+
+/**
+ * Permanently deletes the account: re-checks the password, removes uploaded files and then
+ * deletes the auth user, which cascades to all private data.
+ */
+export async function deleteAccount(raw: unknown) {
+  return authedAction(async (auth) => {
+    const input = deleteAccountSchema.parse(raw);
+    if (!auth.email) throw new UserFacingError("Kontot saknar e-postadress.");
+    // A stateless client verifies the password without touching the session cookies.
+    const env = publicEnv();
+    const verifier = createStatelessClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { error } = await verifier.auth.signInWithPassword({ email: auth.email, password: input.password });
+    if (error) throw new UserFacingError("Fel lösenord.");
+    await removeAllUserObjects(auth);
+    unwrap(await auth.supabase.rpc("delete_my_account"));
+    await auth.supabase.auth.signOut({ scope: "local" });
     return null;
   });
 }

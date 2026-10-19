@@ -83,9 +83,9 @@ export function BottomNav() {
       {!onCoach ? (
         <Link
           href="/coach"
-          className="no-print fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-40 flex items-center gap-2 rounded-full bg-[#13261b] py-3 pr-4 pl-3.5 text-sm font-semibold text-white shadow-[var(--shadow-float)] lg:hidden"
+          className="no-print fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-40 flex items-center gap-2 rounded-full bg-brand-ink py-3 pr-4 pl-3.5 text-sm font-semibold text-white shadow-[var(--shadow-float)] lg:hidden"
         >
-          <Bot className="size-5 text-[#7ee2a8]" aria-hidden />
+          <Bot className="size-5 text-brand-ink-accent" aria-hidden />
           Coach
         </Link>
       ) : null}

@@ -178,7 +178,7 @@ export function ShoppingList({ list, items: initial, planName }: { list: Tables<
                           className={cn(
                             "flex shrink-0 items-center justify-center rounded-lg border-2 transition-colors",
                             shopping ? "size-7" : "size-5",
-                            item.is_purchased ? "border-primary bg-primary text-white" : "border-border bg-surface",
+                            item.is_purchased ? "border-primary-strong bg-primary-strong text-primary-foreground" : "border-border bg-surface",
                           )}
                           aria-hidden
                         >
