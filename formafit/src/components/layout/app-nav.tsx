@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Apple, Bot, ChartLine, Dumbbell, House, LogOut, UserRound } from "lucide-react";
+import { LogoutForm } from "@/components/layout/logout-form";
 import { Logo } from "@/components/shared/logo";
 import { cn } from "@/lib/utils";
 
@@ -63,12 +64,12 @@ export function Sidebar() {
           <UserRound className="size-5" aria-hidden />
           Profil
         </Link>
-        <form action="/auth/logout" method="post">
+        <LogoutForm>
           <button className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-surface-muted hover:text-foreground">
             <LogOut className="size-5" aria-hidden />
             Logga ut
           </button>
-        </form>
+        </LogoutForm>
       </div>
     </aside>
   );

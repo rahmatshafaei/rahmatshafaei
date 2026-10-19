@@ -4,7 +4,8 @@ import { publicEnv } from "@/lib/env";
 import type { Database } from "./database.types";
 
 const PUBLIC_PATHS = ["/", "/logga-in", "/registrera", "/glomt-losenord", "/integritet"];
-const PUBLIC_PREFIXES = ["/auth/"];
+// The reminder job authenticates with CRON_SECRET in the route itself.
+const PUBLIC_PREFIXES = ["/auth/", "/api/cron/"];
 const AUTH_PAGES = ["/logga-in", "/registrera", "/glomt-losenord"];
 
 export function isPublicPath(pathname: string) {

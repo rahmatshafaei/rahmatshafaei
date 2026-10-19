@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Toaster } from "sonner";
 import "@fontsource-variable/inter";
+import { ServiceWorkerRegistrar } from "@/components/pwa/service-worker";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import "./globals.css";
 
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-dvh">
         {children}
+        <ServiceWorkerRegistrar />
         <Toaster
           position="top-center"
           toastOptions={{

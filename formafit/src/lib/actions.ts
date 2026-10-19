@@ -6,7 +6,15 @@ import { SetValidationError } from "@/lib/workout/logic";
 
 export type ActionResult<T = null> =
   | { ok: true; data: T }
-  | { ok: false; error: string; fieldErrors?: Record<string, string[]> };
+  | ActionFailure;
+
+export interface ActionFailure {
+  ok: false;
+  error: string;
+  fieldErrors?: Record<string, string[]>;
+  /** Set when the session has expired, so the client can keep unsent data and ask for a new login. */
+  code?: "unauthorized";
+}
 
 /** Errors whose message is safe to show to the user. */
 export class UserFacingError extends Error {
@@ -53,7 +61,7 @@ export function databaseErrorMessage(e: PostgrestLikeError): string {
   }
 }
 
-export function toActionError(e: unknown): { ok: false; error: string; fieldErrors?: Record<string, string[]> } {
+export function toActionError(e: unknown): ActionFailure {
   if (e instanceof z.ZodError) {
     const fieldErrors: Record<string, string[]> = {};
     for (const issue of e.issues) {
@@ -62,7 +70,8 @@ export function toActionError(e: unknown): { ok: false; error: string; fieldErro
     }
     return { ok: false, error: e.issues[0]?.message ?? "Ogiltiga värden.", fieldErrors };
   }
-  if (e instanceof UnauthorizedError || e instanceof UserFacingError || e instanceof NutritionInputError || e instanceof SetValidationError) {
+  if (e instanceof UnauthorizedError) return { ok: false, error: e.message, code: "unauthorized" };
+  if (e instanceof UserFacingError || e instanceof NutritionInputError || e instanceof SetValidationError) {
     return { ok: false, error: e.message };
   }
   if (isPostgrestError(e)) {

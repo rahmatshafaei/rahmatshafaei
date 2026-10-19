@@ -219,3 +219,16 @@ export async function getWeekSchedule(auth: AuthContext, today: string) {
   });
   return { program: program ? { id: program.id, name: program.name } : null, days, weekStart };
 }
+
+/** Whether the active program has at least one training day tied to a weekday (needed for reminders). */
+export async function hasScheduledTrainingDays(auth: AuthContext): Promise<boolean> {
+  const { data } = await auth.supabase
+    .from("program_days")
+    .select("id, workout_programs!inner(is_active)")
+    .eq("user_id", auth.userId)
+    .eq("workout_programs.is_active", true)
+    .eq("is_rest_day", false)
+    .not("weekday", "is", null)
+    .limit(1);
+  return (data?.length ?? 0) > 0;
+}

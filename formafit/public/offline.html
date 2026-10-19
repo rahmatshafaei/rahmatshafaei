@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="sv">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Offline · FormaFit</title>
+    <script>
+      try { var t = localStorage.getItem("formafit:theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}
+    </script>
+    <style>
+      :root {
+        color-scheme: light;
+        --background: #faf8f4;
+        --surface: #fff;
+        --foreground: #1f2328;
+        --muted: #646a73;
+        --border: #e7e2d9;
+        --primary: #0f7f45;
+        --primary-foreground: #fff;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+          color-scheme: dark;
+          --background: #121513;
+          --surface: #1b1f1c;
+          --foreground: #ecebe6;
+          --muted: #a3a9a2;
+          --border: #2f3530;
+          --primary: #34c77b;
+          --primary-foreground: #052e16;
+        }
+      }
+      :root[data-theme="dark"] {
+        color-scheme: dark;
+        --background: #121513;
+        --surface: #1b1f1c;
+        --foreground: #ecebe6;
+        --muted: #a3a9a2;
+        --border: #2f3530;
+        --primary: #34c77b;
+        --primary-foreground: #052e16;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        padding: 24px 16px;
+        background: var(--background);
+        color: var(--foreground);
+        font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      }
+      main {
+        width: 100%;
+        max-width: 26rem;
+        padding: 28px 24px;
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        background: var(--surface);
+        text-align: center;
+      }
+      img { width: 56px; height: 56px; }
+      h1 { margin: 16px 0 8px; font-size: 1.375rem; letter-spacing: -0.01em; }
+      p { margin: 0 0 12px; color: var(--muted); font-size: 0.95rem; }
+      button {
+        margin-top: 8px;
+        min-height: 44px;
+        padding: 0 20px;
+        border: 0;
+        border-radius: 14px;
+        background: var(--primary);
+        color: var(--primary-foreground);
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button:focus-visible { outline: 3px solid var(--primary); outline-offset: 3px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img src="/icon.svg" alt="" />
+      <h1>Du är offline</h1>
+      <p>FormaFit behöver uppkoppling för att visa dina uppgifter. Inga sidor med dina data sparas på enheten.</p>
+      <p>Set som du redan har loggat i ett öppet pass ligger kvar i webbläsaren och skickas när du är online igen.</p>
+      <button type="button" onclick="location.reload()">Försök igen</button>
+    </main>
+  </body>
+</html>

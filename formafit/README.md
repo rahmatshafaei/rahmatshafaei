@@ -9,7 +9,7 @@ FormaFit is a Swedish-language, mobile-first fitness and nutrition platform. It 
 5. **Grocery lists** – generated from a saved plan and date range, grouped by store section, with a shopping mode, search, sharing and printing.
 6. **Progress tracking** – weight with weekly averages, body measurements, intake, consistency, strength curves, private progress photos and weekly summaries.
 
-It also includes data export and self-service account deletion, a light and dark theme (follows the system or a per-device choice) and an installable web app manifest.
+It also includes data export and self-service account deletion, a light and dark theme (follows the system or a per-device choice), an installable web app with an offline fallback and offline-tolerant set logging, and opt-in push reminders for training days and food logging.
 
 Units are kilograms, centimetres and grams. Dates follow the Europe/Stockholm calendar.
 
@@ -74,14 +74,24 @@ See `.env.example` (variable names only, no secrets).
 | `ANTHROPIC_MODEL` | no | Defaults to `claude-opus-5-5`. |
 | `OPENFOODFACTS_ENABLED`, `OPENFOODFACTS_USER_AGENT` | no | Product search and barcode lookup via Open Food Facts (public API, no key). Set a user agent with contact details in production. |
 | `AI_COACH_HOURLY_LIMIT`, `AI_GENERATION_HOURLY_LIMIT` | no | Per-user hourly limits (defaults 30 and 10). |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | for push reminders | Generate with `npx web-push generate-vapid-keys`. The private key is server-only. Without them the reminders card says notifications are not configured. |
+| `CRON_SECRET` | for push reminders | At least 32 characters (`openssl rand -hex 32`). Authorises the reminder job. |
+| `SUPABASE_SERVICE_ROLE_KEY` | for push reminders | Server-only. Used **only** by the reminder job, which has to read due reminders across users. Requests made by users never use it. Test tooling uses it too. |
 
-No service-role key is used by the application. `SUPABASE_SERVICE_ROLE_KEY` appears in `.env.example` only for optional test tooling.
+Requests made by signed-in users always go through the publishable key and RLS.
 
 ### Deploying to a hosted Supabase project
 
 1. Create a project, then `npx supabase link` and `npx supabase db push` to apply `supabase/migrations`.
 2. In Auth settings set the Site URL and add `https://<your-domain>/auth/callback` to the redirect allow-list. Configure SMTP for real emails, and enable email confirmation if you want it (the app handles both flows).
-3. Set the environment variables above on your host, then `npm run build && npm start`.
+3. Set the environment variables above on your host, then `npm run build && npm start`. Push notifications and the service worker need HTTPS (localhost is exempt).
+4. For push reminders, call the reminder job every 5–60 minutes (a reminder is due from its time and for the next three hours, and is sent at most once per day):
+
+   ```bash
+   curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" https://<your-domain>/api/cron/reminders
+   ```
+
+   Any scheduler works, for example Vercel Cron (it sends the `CRON_SECRET` header automatically; schedules more frequent than daily need a paid plan), Supabase `pg_cron` + `pg_net`, or a scheduled GitHub Actions workflow. The response contains counts only (`due`, `notified`, `sent`, `removed`, `failed`, `skipped`).
 
 ---
 
@@ -97,8 +107,10 @@ formafit/
 │     ├─ 20261019000300_functions.sql       transactional SQL functions (security invoker)
 │     ├─ 20261019000400_storage.sql         private buckets + per-user storage policies
 │     ├─ 20261019000500_starter_data.sql    starter foods and exercises (generated)
-│     └─ 20261020000100_account_deletion.sql  delete_my_account() for self-service deletion
-├─ scripts/generate-starter-data.py
+│     ├─ 20261020000100_account_deletion.sql  delete_my_account() for self-service deletion
+│     └─ 20261021000100_reminders.sql       push subscriptions, reminder settings, delivery log, due reminders
+├─ scripts/                           generate-starter-data.py, generate-icons.mjs
+├─ public/                            sw.js (service worker), offline.html, app icons
 ├─ src/
 │  ├─ proxy.ts                         session refresh + route protection (Next 16 "proxy")
 │  ├─ app/
@@ -115,18 +127,21 @@ formafit/
 │  │  │  └─ profil/                    profile, targets, preferences
 │  │  ├─ api/coach/route.ts            streaming coach endpoint
 │  │  ├─ api/export/route.ts           JSON export of all of the user's own data
+│  │  ├─ api/cron/reminders/route.ts   reminder job (CRON_SECRET), sends due push reminders
 │  │  └─ manifest.ts                   web app manifest (icons in public/ and app/apple-icon.png)
-│  ├─ components/                      ui/ (design system), nutrition/, workout/, charts/, coach/, layout/
+│  ├─ components/                      ui/ (design system), nutrition/, workout/, charts/, coach/, layout/, pwa/
 │  └─ lib/
 │     ├─ nutrition/                    engine.ts, targets.ts, allergens.ts, substitutes.ts (pure, tested)
 │     ├─ grocery/aggregate.ts          grocery aggregation (pure, tested)
-│     ├─ workout/                      logic.ts (sets, PRs, progression), templates.ts
+│     ├─ workout/                      logic.ts (sets, PRs, progression), templates.ts, offline-queue.ts
 │     ├─ progress/summary.ts           weekly summaries from recorded data only
 │     ├─ ai/                           client, rate limiting, prompt context, draft resolvers
 │     ├─ data/                         server-only query helpers
-│     ├─ services/                     storage uploads, Open Food Facts, grocery generation, targets
+│     ├─ services/                     storage uploads, Open Food Facts, grocery generation, targets, push
+│     ├─ reminders.ts, push-client.ts  reminder texts and settings helpers; browser side of Web Push
+│     ├─ offline.ts                    Server Action calls that report "no connection" instead of throwing
 │     ├─ validation.ts                 Zod schemas
-│     └─ supabase/                     server/browser/proxy clients + generated DB types
+│     └─ supabase/                     server/browser/proxy clients, admin client (reminder job only), DB types
 └─ tests/
    ├─ unit/                            component tests
    ├─ integration/                     RLS, storage, SQL functions and account deletion with real users
@@ -135,7 +150,7 @@ formafit/
 
 ### Data model
 
-Profiles, nutrition targets, user preferences, foods (+ servings, favourites), diary entries, water logs, recipes (+ ingredients; "saved meals" are recipes of kind `meal`), meal plans, planned meals, planned-meal ingredients, meal consumptions, exercises, workout programs, program days, program exercises, workout sessions, session exercises, session sets, measurements, progress photos, shopping lists (+ items), AI conversations, AI messages and an append-only AI request log.
+Profiles, nutrition targets, user preferences, foods (+ servings, favourites), diary entries, water logs, recipes (+ ingredients; "saved meals" are recipes of kind `meal`), meal plans, planned meals, planned-meal ingredients, meal consumptions, exercises, workout programs, program days, program exercises, workout sessions, session exercises, session sets, measurements, progress photos, shopping lists (+ items), AI conversations, AI messages, an append-only AI request log, push subscriptions (one per browser) and a reminder delivery log.
 
 Key design decisions:
 
@@ -151,6 +166,8 @@ Key design decisions:
 - Storage buckets are private. Policies only allow objects under `<uid>/…`. Uploads are checked by magic bytes and size on the server (not by the client-declared MIME type) as well as by the bucket's limits. Photos are shown via short-lived signed URLs.
 - Logout is POST-only, redirects are restricted to relative in-app paths, password-reset responses do not reveal whether an account exists, and the app sets security headers (`X-Frame-Options`, `nosniff`, a strict referrer policy and a permissions policy).
 - AI calls are server-side only. A per-user quota is enforced in the database with an append-only log that users cannot delete from.
+- **Service worker caching** never stores private pages or API responses: it caches only content-hashed `/_next/static/` assets, the icons and a static offline page, and navigations always go to the network. Queued set logs live in `localStorage` on the device until they are sent, and are cleared on logout and account deletion.
+- **Push subscriptions** can only be created through `register_push_subscription()`. An endpoint belongs to one browser, so registering it moves it to the current account and a previous account on a shared device stops receiving reminders there. Users can read and delete only their own subscriptions, and logging out unsubscribes the browser and deletes its row. The delivery log and `reminder_candidates()` cannot be written or called by users. The job endpoint compares the bearer token in constant time and returns counts only.
 - **Data export and deletion** (Profil → Dina data): the export downloads every own row as JSON (paged past PostgREST's 1000-row limit). Deletion requires the current password, which is checked with a separate stateless client so session cookies are untouched, plus typing RADERA. It then removes all uploaded files through the Storage API and calls `delete_my_account()`, which deletes the auth user so every private table cascades.
 
 ### Nutrition calculations
@@ -168,6 +185,12 @@ Energy targets (`src/lib/nutrition/targets.ts`) use **Mifflin–St Jeor**: `10·
 ### Design system and themes
 
 Colours are CSS tokens in `src/app/globals.css`, with a light set and a dark set. The dark set applies under `prefers-color-scheme: dark` unless the user picks a theme in Profil (stored per device in `localStorage` and applied before first paint, so the page never flashes the wrong theme). Buttons use a deeper green (`--primary-strong`) that meets WCAG AA contrast with their text, while the fresh `--primary` green is used for rings, marks and accents. The macro/chart palettes for both themes pass a colour-vision-deficiency and contrast validator, and charts always have a legend (for two or more series) and a table view.
+
+### Offline support and reminders
+
+- **Offline fallback.** `public/sw.js` is registered in production builds. Pages are always fetched from the network, and when that fails the static offline page is shown. Hashed build assets are served from the cache after their first load.
+- **Logging sets without a connection.** If a set cannot reach the server (no signal in the gym, a dropped connection), its full values are queued per session on the device. Newer values for the same set replace older ones, and newer values queue behind any pending ones so sets are always sent in order. The queue is sent when the browser comes back online, on page load and every 15 seconds. Each entry is removed only if it was not changed while it was being sent. If the login has expired in the meantime, the queue is kept until the user has signed in again. The device's completion time is kept (when it lies within the session) so history shows when the set was actually done. The header shows how many sets are waiting, and finishing the session is blocked until they are sent. Other actions (adding sets, pausing, notes) need a connection and say so instead of failing silently.
+- **Reminders** (Profil → Påminnelser) are opt-in per device. A training reminder is only sent on days when the active program has a training day on that weekday and no session was started that day. The logging reminder is only sent when nothing has been logged in the diary that day. The text states only what the data shows. Times are local to the user's time zone (taken from the browser when saving). Each reminder is claimed in the delivery log before sending, so overlapping job runs never send it twice. A temporary push-service failure releases the claim so the next run retries, and subscriptions reported as gone (404/410) are deleted. There is also a test notification. On iPhone and iPad, Web Push requires adding the app to the home screen, and the card says so.
 
 ### Food data
 
@@ -194,16 +217,16 @@ The app does **not** invent verified nutrition facts:
 | --- | --- | --- |
 | Lint | `npm run lint` | 0 problems |
 | Type check | `npm run typecheck` | passes |
-| Unit + component | `npm test` | 13 files, 115 tests passed |
-| Integration (local Supabase) | `npm run test:integration` | 2 files, 19 tests passed |
-| E2E (Playwright, mobile + desktop) | `npm run test:e2e` | 13 tests passed (AI specs against the mock server) |
+| Unit + component | `npm test` | 17 files, 138 tests passed |
+| Integration (local Supabase) | `npm run test:integration` | 3 files, 23 tests passed |
+| E2E (Playwright, mobile + desktop) | `npm run test:e2e` | 15 tests passed (AI specs against the mock server) |
 | Production build | `npm run build` | succeeds |
 
-Unit tests cover portion scaling, meal/recipe/daily totals, invalid quantities, missing nutrition data, target calculation, allergen suitability, substitutions, grocery aggregation (identity normalisation, raw vs cooked, incompatible units, rounding), set validation, PRs, progression, weekly summaries, AI draft resolution, coach context selection, the Open Food Facts parser, upload validation, error mapping and UI components.
+Unit tests cover portion scaling, meal/recipe/daily totals, invalid quantities, missing nutrition data, target calculation, allergen suitability, substitutions, grocery aggregation (identity normalisation, raw vs cooked, incompatible units, rounding), set validation, PRs, progression, weekly summaries, AI draft resolution, coach context selection, the Open Food Facts parser, upload validation, error mapping, the offline set queue, completion times of synced sets, reminder texts, the service worker's caching and push handling (run in an isolated context with fake browser APIs) and UI components.
 
-Integration tests use real users to check account deletion (with test-only service credentials, they confirm that no private row survives in any table), cross-user isolation (profiles, foods, diary, plans, sessions, storage), idempotent "mark as eaten", history immutability, plan copying, session rules, quotas and storage type restrictions.
+Integration tests use real users to check account deletion (with test-only service credentials, they confirm that no private row survives in any table), cross-user isolation (profiles, foods, diary, plans, sessions, storage), idempotent "mark as eaten", history immutability, plan copying, session rules, quotas and storage type restrictions. They also cover push-subscription RLS (direct inserts refused, ownership moving on a shared device, a limit of 10 devices) and the reminder job end to end with a fake push transport: only reminders backed by data are sent, time zones are respected, invalid zones are skipped, nothing is sent twice, gone subscriptions are deleted and temporary failures are retried.
 
-The E2E specs cover registration/login/logout/protected routes, password recovery via the email link, logging and editing diary entries, creating a meal plan with idempotent "eaten" and grocery aggregation, running and completing a workout with persistence across reloads, progress views, data export and account deletion (wrong password rejected, uploaded photo removed, login impossible afterwards), and AI meal-plan generation, coach chat and AI workout generation. The AI specs also assert the request contract (structured output format, fallbacks beta, no database IDs, allergy filtering in the prompt). With `ANTHROPIC_API_KEY` set, the same specs run against the real API. That configuration was **not** run here because no key was available.
+The E2E specs cover registration/login/logout/protected routes, password recovery via the email link, logging and editing diary entries, creating a meal plan with idempotent "eaten" and grocery aggregation, running and completing a workout with persistence across reloads, progress views, data export and account deletion (wrong password rejected, uploaded photo removed, login impossible afterwards), AI meal-plan generation, coach chat and AI workout generation, logging a set offline and syncing it when back online, and reminders. The reminders spec covers enabling and disabling a device, saving times, logout removing the subscription, and the job endpoint refusing calls without the secret while running with it. The AI specs also assert the request contract (structured output format, fallbacks beta, no database IDs, allergy filtering in the prompt). With `ANTHROPIC_API_KEY` set, the same specs run against the real API. That configuration was **not** run here because no key was available. Headless Chromium cannot create real push subscriptions, so the reminders spec replaces the browser's `PushManager` with a stand-in that returns a real P-256 key and a fake endpoint. Playwright's offline mode does not apply to the service worker's own requests, so the offline fallback page is covered by the unit test and the E2E spec only checks what is precached.
 
 ---
 
@@ -214,4 +237,5 @@ The E2E specs cover registration/login/logout/protected routes, password recover
 - **Exercise images/videos:** none are bundled because no licensed media source was available. Users can upload their own images and add video links.
 - **Price estimates** are manual only. No retailer integration exists, and prices are never fabricated.
 - **Live AI:** the integration was verified against a protocol-compatible mock, not the real Claude API, in this environment.
-- **Not implemented:** offline support (the app is installable but has no service worker) and push notifications.
+- **Offline scope:** only set logging in an open session works offline. Other pages need a connection by design, because private data is never cached on the device.
+- **Push delivery** was verified up to encryption and the outgoing request. Delivery through a real browser push service (FCM, Mozilla, Apple) could not be tested in this environment. Reminders also need an external scheduler that calls the job (see Deploying).

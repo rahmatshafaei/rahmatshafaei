@@ -2,10 +2,15 @@ import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
 vi.mock("@/lib/auth", () => ({
-  UnauthorizedError: class UnauthorizedError extends Error {},
+  UnauthorizedError: class UnauthorizedError extends Error {
+    constructor() {
+      super("Du måste vara inloggad.");
+    }
+  },
   requireAuthForAction: vi.fn(async () => ({ supabase: {}, userId: "u1", email: null })),
 }));
 
+import { UnauthorizedError } from "@/lib/auth";
 import { authedAction, databaseErrorMessage, toActionError, UserFacingError } from "./actions";
 
 describe("action error handling", () => {
@@ -33,5 +38,9 @@ describe("action error handling", () => {
       throw new UserFacingError("Synligt fel");
     });
     expect(user).toEqual({ ok: false, error: "Synligt fel" });
+  });
+
+  it("marks an expired session so the client can keep unsent data", () => {
+    expect(toActionError(new UnauthorizedError())).toEqual({ ok: false, error: "Du måste vara inloggad.", code: "unauthorized" });
   });
 });

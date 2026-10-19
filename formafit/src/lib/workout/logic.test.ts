@@ -5,8 +5,9 @@ import {
   isNewRecord,
   isoWeekday,
   personalRecords,
-  setVolume,
+  resolveCompletedAt,
   SetValidationError,
+  setVolume,
   suggestProgression,
   validateSetInput,
   weeklyConsistency,
@@ -138,5 +139,24 @@ describe("session timing and consistency", () => {
       { weekStart: "2026-10-12", count: 1 },
       { weekStart: "2026-10-19", count: 2 },
     ]);
+  });
+});
+
+describe("completion time of sets synced later", () => {
+  const started = "2026-10-19T17:00:00.000Z";
+  const now = new Date("2026-10-19T18:00:00.000Z");
+
+  it("keeps the device time when it lies within the session", () => {
+    expect(resolveCompletedAt("2026-10-19T17:20:00.000Z", started, now)).toBe("2026-10-19T17:20:00.000Z");
+  });
+
+  it("clamps future times and rejects times before the start", () => {
+    expect(resolveCompletedAt("2026-10-19T19:00:00.000Z", started, now)).toBe(now.toISOString());
+    expect(resolveCompletedAt("2026-10-19T16:59:00.000Z", started, now)).toBe(now.toISOString());
+  });
+
+  it("uses the server time when no device time is given", () => {
+    expect(resolveCompletedAt(null, started, now)).toBe(now.toISOString());
+    expect(resolveCompletedAt("not a date", started, now)).toBe(now.toISOString());
   });
 });

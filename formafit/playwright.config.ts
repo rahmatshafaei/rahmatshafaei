@@ -1,7 +1,18 @@
+import { randomBytes } from "node:crypto";
 import { defineConfig, devices } from "@playwright/test";
 import { loadEnvConfig } from "@next/env";
+import webpush from "web-push";
 
 loadEnvConfig(process.cwd());
+
+// Throwaway push keys and job secret for this test run only. Generated in the runner process;
+// workers inherit them through the environment, so the server and the tests agree.
+if (!process.env.E2E_VAPID_PUBLIC_KEY) {
+  const keys = webpush.generateVAPIDKeys();
+  process.env.E2E_VAPID_PUBLIC_KEY = keys.publicKey;
+  process.env.E2E_VAPID_PRIVATE_KEY = keys.privateKey;
+  process.env.E2E_CRON_SECRET = randomBytes(32).toString("hex");
+}
 
 /**
  * E2E tests run against a production build and a local Supabase stack (`npm run db:start`).
@@ -51,6 +62,10 @@ export default defineConfig({
         NEXT_PUBLIC_SITE_URL: `http://localhost:${PORT}`,
         ...(realAi ? {} : { ANTHROPIC_API_KEY: "mock-key", ANTHROPIC_BASE_URL: `http://127.0.0.1:${MOCK_PORT}` }),
         AI_GENERATION_HOURLY_LIMIT: "50",
+        NEXT_PUBLIC_VAPID_PUBLIC_KEY: process.env.E2E_VAPID_PUBLIC_KEY!,
+        VAPID_PRIVATE_KEY: process.env.E2E_VAPID_PRIVATE_KEY!,
+        VAPID_SUBJECT: "mailto:e2e@example.com",
+        CRON_SECRET: process.env.E2E_CRON_SECRET!,
       },
     },
   ],

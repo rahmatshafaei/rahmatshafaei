@@ -35,6 +35,8 @@ const TABLES: [Table, "user_id" | "owner_id" | "id"][] = [
   ["shopping_list_items", "user_id"],
   ["ai_conversations", "user_id"],
   ["ai_messages", "user_id"],
+  ["push_subscriptions", "user_id"],
+  ["notification_deliveries", "user_id"],
 ];
 
 /**

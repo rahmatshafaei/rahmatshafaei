@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
 import { Notice } from "@/components/ui/feedback";
 import { Field, Input } from "@/components/ui/input";
+import { unsubscribeBrowser } from "@/lib/push-client";
+import { clearAllPending } from "@/lib/workout/offline-queue";
 import { deleteAccount } from "./actions";
 
 export function DataCard() {
@@ -55,6 +57,9 @@ export function DataCard() {
                   setError(res.error);
                   return;
                 }
+                // Server rows are gone with the account; also forget this device's subscription and queue.
+                clearAllPending();
+                await unsubscribeBrowser().catch(() => null);
                 toast.success("Kontot är raderat");
                 // The session cookies are already cleared; refresh drops the signed-in UI.
                 router.replace("/?konto=raderat");

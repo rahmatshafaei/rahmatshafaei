@@ -5,7 +5,7 @@ import { authedAction, unwrap, UserFacingError } from "@/lib/actions";
 import type { AuthContext } from "@/lib/auth";
 import { uploadImage } from "@/lib/services/storage";
 import type { Json } from "@/lib/supabase/database.types";
-import { validateSetInput } from "@/lib/workout/logic";
+import { resolveCompletedAt, validateSetInput } from "@/lib/workout/logic";
 import { PROGRAM_TEMPLATES } from "@/lib/workout/templates";
 import { consumeAiQuota } from "@/lib/ai/rate-limit";
 import { generateWorkoutDraft } from "@/lib/ai/workout";
@@ -457,10 +457,10 @@ export async function logSet(raw: unknown) {
     const input = setLogSchema.parse(raw);
     validateSetInput({ weightKg: input.weightKg ?? null, reps: input.reps ?? null, rir: input.rir ?? null }, { requireComplete: input.isCompleted });
     const set = unwrap(
-      await supabase.from("session_sets").select("id, session_id, workout_sessions(status)").eq("id", input.setId).eq("user_id", userId).single(),
+      await supabase.from("session_sets").select("id, session_id, workout_sessions(status, started_at)").eq("id", input.setId).eq("user_id", userId).single(),
     );
-    const status = set.workout_sessions?.status;
-    if (status !== "in_progress" && status !== "paused") throw new UserFacingError("Passet är redan avslutat.");
+    const session = set.workout_sessions;
+    if (!session || (session.status !== "in_progress" && session.status !== "paused")) throw new UserFacingError("Passet är redan avslutat.");
     unwrap(
       await supabase
         .from("session_sets")
@@ -469,7 +469,7 @@ export async function logSet(raw: unknown) {
           reps: input.reps ?? null,
           rir: input.rir ?? null,
           is_completed: input.isCompleted,
-          completed_at: input.isCompleted ? new Date().toISOString() : null,
+          completed_at: input.isCompleted ? resolveCompletedAt(input.completedAt, session.started_at) : null,
         })
         .eq("id", input.setId)
         .eq("user_id", userId),

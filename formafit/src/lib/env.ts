@@ -67,3 +67,37 @@ export function serverEnv(): ServerEnv {
 export function isAiConfigured(): boolean {
   return Boolean(process.env.ANTHROPIC_API_KEY);
 }
+
+const pushSchema = z.object({
+  NEXT_PUBLIC_VAPID_PUBLIC_KEY: z.string().regex(/^[A-Za-z0-9_-]{80,100}$/, "NEXT_PUBLIC_VAPID_PUBLIC_KEY"),
+  VAPID_PRIVATE_KEY: z.string().regex(/^[A-Za-z0-9_-]{40,50}$/, "VAPID_PRIVATE_KEY"),
+  VAPID_SUBJECT: z.string().regex(/^(mailto:|https:\/\/)\S+$/, "VAPID_SUBJECT"),
+});
+
+export type PushEnv = z.infer<typeof pushSchema>;
+
+/**
+ * Web Push (VAPID) keys, or null when push reminders are not configured. Generate keys with
+ * `npx web-push generate-vapid-keys`. Server-only: the private key must never reach the client.
+ */
+export function pushEnv(): PushEnv | null {
+  if (typeof window !== "undefined") throw new Error("pushEnv() får bara anropas på servern.");
+  const raw = {
+    NEXT_PUBLIC_VAPID_PUBLIC_KEY: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+    VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY,
+    VAPID_SUBJECT: process.env.VAPID_SUBJECT,
+  };
+  if (!raw.NEXT_PUBLIC_VAPID_PUBLIC_KEY && !raw.VAPID_PRIVATE_KEY) return null;
+  const parsed = pushSchema.safeParse(raw);
+  if (!parsed.success) {
+    console.error(`[push] Ogiltig konfiguration: ${parsed.error.issues.map((i) => i.message).join(", ")}`);
+    return null;
+  }
+  return parsed.data;
+}
+
+/** Shared secret that authorises the reminder job (`Authorization: Bearer <CRON_SECRET>`). */
+export function cronSecret(): string | null {
+  const s = process.env.CRON_SECRET;
+  return s && s.length >= 32 ? s : null;
+}

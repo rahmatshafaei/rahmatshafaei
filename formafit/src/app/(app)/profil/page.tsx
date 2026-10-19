@@ -4,16 +4,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/feedback";
 import { requireAuth } from "@/lib/auth";
+import { LogoutForm } from "@/components/layout/logout-form";
 import { getPreferences, getProfile, getTargets } from "@/lib/data/profile";
-import { isAiConfigured } from "@/lib/env";
+import { hasScheduledTrainingDays } from "@/lib/data/workouts";
+import { isAiConfigured, pushEnv } from "@/lib/env";
 import { DataCard } from "./data-card";
 import { PreferencesForm, ProfileForm, TargetsCard } from "./profile-forms";
+import { RemindersCard } from "./reminders-card";
 
 export const metadata: Metadata = { title: "Profil" };
 
 export default async function ProfilePage() {
   const auth = await requireAuth();
-  const [profile, targets, prefs] = await Promise.all([getProfile(auth), getTargets(auth), getPreferences(auth)]);
+  const [profile, targets, prefs, scheduledDays] = await Promise.all([
+    getProfile(auth),
+    getTargets(auth),
+    getPreferences(auth),
+    hasScheduledTrainingDays(auth),
+  ]);
   if (!profile || !prefs) return null;
   return (
     <>
@@ -40,17 +48,22 @@ export default async function ProfilePage() {
               <PreferencesForm prefs={prefs} aiConfigured={isAiConfigured()} />
             </CardContent>
           </Card>
+          <RemindersCard
+            vapidPublicKey={pushEnv()?.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null}
+            hasScheduledDays={scheduledDays}
+            settings={{ timezone: prefs.reminder_timezone, workoutTime: prefs.workout_reminder_time, mealTime: prefs.meal_reminder_time }}
+          />
           <Card>
             <CardHeader>
               <CardTitle>Konto</CardTitle>
               <CardDescription>Enheter: kilogram, centimeter och gram.</CardDescription>
             </CardHeader>
             <CardContent>
-              <form action="/auth/logout" method="post">
+              <LogoutForm>
                 <Button variant="outline" className="w-full">
                   <LogOut /> Logga ut
                 </Button>
-              </form>
+              </LogoutForm>
             </CardContent>
           </Card>
           <DataCard />
