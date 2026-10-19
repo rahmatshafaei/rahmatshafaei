@@ -2,7 +2,8 @@ import "server-only";
 import webpush from "web-push";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { unwrap } from "@/lib/actions";
-import { pushEnv, type PushEnv } from "@/lib/env";
+import { pushEnv, pushTestHosts, type PushEnv } from "@/lib/env";
+import { isAllowedPushEndpoint } from "@/lib/push-endpoints";
 import { reminderMessage, type PushPayload, type ReminderCandidate } from "@/lib/reminders";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -17,7 +18,8 @@ export type PushSender = (target: PushTarget, payload: string) => Promise<void>;
 /** Reminders are useless after a few hours, so the push service may drop them after that. */
 const TTL_SECONDS = 3 * 60 * 60;
 
-export function webPushSender(env: PushEnv): PushSender {
+/** Sends with web-push, but only to known push services (a disallowed endpoint counts as gone). */
+export function webPushSender(env: PushEnv, extraHosts: readonly string[] = []): PushSender {
   const options: webpush.RequestOptions = {
     vapidDetails: { subject: env.VAPID_SUBJECT, publicKey: env.NEXT_PUBLIC_VAPID_PUBLIC_KEY, privateKey: env.VAPID_PRIVATE_KEY },
     TTL: TTL_SECONDS,
@@ -25,6 +27,9 @@ export function webPushSender(env: PushEnv): PushSender {
     timeout: 10_000,
   };
   return async (target, payload) => {
+    if (!isAllowedPushEndpoint(target.endpoint, extraHosts)) {
+      throw Object.assign(new Error("Push endpoint is not a known push service"), { statusCode: 410 });
+    }
     await webpush.sendNotification(target, payload, options);
   };
 }
@@ -32,7 +37,7 @@ export function webPushSender(env: PushEnv): PushSender {
 /** A configured sender, or null when VAPID keys are missing. */
 export function configuredSender(): PushSender | null {
   const env = pushEnv();
-  return env ? webPushSender(env) : null;
+  return env ? webPushSender(env, pushTestHosts()) : null;
 }
 
 function statusOf(e: unknown): number | undefined {

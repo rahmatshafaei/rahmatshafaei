@@ -59,6 +59,17 @@ describe("push subscriptions (RLS)", () => {
     expect((await a.client.from("push_subscriptions").select("id")).data).toHaveLength(10);
   });
 
+  it("limits test notifications to 5 per hour", async () => {
+    const a = await newUser();
+    const results = [];
+    for (let i = 0; i < 6; i++) results.push((await a.client.rpc("claim_push_test")).data);
+    expect(results).toEqual([true, true, true, true, true, false]);
+    // The log cannot be read or cleared directly.
+    expect((await a.client.from("push_test_log").select("id")).data).toEqual([]);
+    await a.client.from("push_test_log").delete().eq("user_id", a.id);
+    expect((await a.client.rpc("claim_push_test")).data).toBe(false);
+  });
+
   it("keeps the delivery log and due reminders away from users", async () => {
     const a = await newUser();
     const insert = await a.client.from("notification_deliveries").insert({ user_id: a.id, kind: "workout", local_date: "2026-10-21" });
@@ -178,5 +189,26 @@ describe.skipIf(!serviceKey)("reminder job", () => {
     calls.length = 0;
     await runReminderJob(admin, send, new Date("2026-10-21T19:01:00.000Z"));
     expect(to(flakyEp)).toEqual([]);
+  });
+
+  it("keeps a late-evening reminder due after local midnight", async () => {
+    const late = await newUser();
+    await withProgram(late.client, 3);
+    await settings(late.client, late.id, { workout: "23:30", meal: "23:30" });
+    const ep = endpoint("late");
+    await subscribe(late.client, ep);
+    const calls: { endpoint: string; tag: string }[] = [];
+    const send: PushSender = async (target, payload) => void calls.push({ endpoint: target.endpoint, tag: JSON.parse(payload).tag });
+    const mine = () => calls.filter((c) => c.endpoint === ep).map((c) => c.tag).sort();
+
+    // 23:00 on Wednesday: not due yet.
+    await runReminderJob(admin, send, new Date("2026-10-21T21:00:00.000Z"));
+    expect(mine()).toEqual([]);
+    // 00:15 on Thursday: Wednesday's reminders (Wednesday is the planned day) are still due.
+    await runReminderJob(admin, send, new Date("2026-10-21T22:15:00.000Z"));
+    expect(mine()).toEqual(["meal-2026-10-21", "workout-2026-10-21"]);
+    // Nothing is repeated, and Thursday's reminders are not due before 23:30 on Thursday.
+    await runReminderJob(admin, send, new Date("2026-10-22T00:20:00.000Z"));
+    expect(mine()).toHaveLength(2);
   });
 });

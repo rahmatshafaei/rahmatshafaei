@@ -102,8 +102,12 @@ describe("service worker", () => {
     await sw.dispatch("push", { data: data({ title: "Dags att träna", body: "Push A", url: "/traning", tag: "workout-1" }) });
     expect(sw.showNotification).toHaveBeenCalledWith("Dags att träna", expect.objectContaining({ body: "Push A", tag: "workout-1", data: { url: "/traning" } }));
 
-    await sw.dispatch("push", { data: data({ title: "X", url: "https://evil.example" }) });
-    expect(sw.showNotification).toHaveBeenLastCalledWith("X", expect.objectContaining({ data: { url: "/hem" } }));
+    for (const url of ["https://evil.example", "//evil.example/x", "/\\evil.example", 42]) {
+      await sw.dispatch("push", { data: data({ title: "X", url }) });
+      expect(sw.showNotification).toHaveBeenLastCalledWith("X", expect.objectContaining({ data: { url: "/hem" } }));
+    }
+    await sw.dispatch("push", { data: data({ title: "Y", url: "/mat?dag=2026-10-21#lunch" }) });
+    expect(sw.showNotification).toHaveBeenLastCalledWith("Y", expect.objectContaining({ data: { url: "/mat?dag=2026-10-21#lunch" } }));
 
     sw.showNotification.mockClear();
     await sw.dispatch("push", { data: data({ nope: true }) });

@@ -40,6 +40,12 @@ test("sets logged without connection stay on the device and are synced when back
   expect(cached).toContain("/offline.html");
   expect(cached.filter((p) => !p.startsWith("/_next/static/") && !["/offline.html", "/icon.svg", "/icon-192.png"].includes(p))).toEqual([]);
 
+  const [queueKey, queued] = await page.evaluate(() => {
+    const key = Object.keys(localStorage).find((k) => k.startsWith("formafit:pending-sets:"))!;
+    return [key, JSON.parse(localStorage.getItem(key)!)] as const;
+  });
+  expect(queued).toEqual([expect.objectContaining({ weightKg: 72.5, reps: 6, isCompleted: true })]);
+
   // Back online: the queue is sent without reloading the page.
   await context.setOffline(false);
   await expect(page.getByText("Alla set är sparade.")).toBeVisible();
@@ -49,6 +55,19 @@ test("sets logged without connection stay on the device and are synced when back
   await expect(page.getByLabel("Vikt set 1").first()).toHaveValue("72,5");
   await expect(page.getByLabel("Repetitioner set 1").first()).toHaveValue("6");
   await expect(page.getByRole("button", { name: "Ångra set 1" }).first()).toBeVisible();
+
+  // Reopening the session with an unsent queue (the app was closed before it synced): the
+  // queued values are shown, sent, and stay on screen afterwards.
+  await page.evaluate(
+    ([key, entry]) => localStorage.setItem(key, JSON.stringify([{ ...entry, weightKg: 75, reps: 5, queuedAt: Date.now() }])),
+    [queueKey, queued[0]] as const,
+  );
+  await page.reload();
+  await expect(page.getByText("Alla set är sparade.")).toBeVisible();
+  await expect(page.getByLabel("Vikt set 1").first()).toHaveValue("75");
+  await expect(page.getByLabel("Repetitioner set 1").first()).toHaveValue("5");
+  await page.reload();
+  await expect(page.getByLabel("Vikt set 1").first()).toHaveValue("75");
 
   await page.getByRole("button", { name: "Avsluta" }).click();
   await page.getByRole("button", { name: "Spara pass" }).click();

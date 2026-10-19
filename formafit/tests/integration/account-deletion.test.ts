@@ -38,6 +38,7 @@ describe("delete_my_account", () => {
     await c.from("measurements").insert({ user_id: victim.id, measured_on: "2026-10-19", weight_kg: 80 });
     const conv = (await c.from("ai_conversations").insert({ user_id: victim.id, title: "Hej" }).select("id").single()).data!;
     await c.from("ai_messages").insert({ conversation_id: conv.id, user_id: victim.id, role: "user", content: "Hej" });
+    expect((await c.rpc("claim_push_test")).data).toBe(true);
     expect((await c.rpc("register_push_subscription", { p_endpoint: `https://push.example.test/${crypto.randomUUID()}`, p_p256dh: "BElzYXRlc3RrZXlmb3JpbnRlZ3JhdGlvbg", p_auth: "dGVzdGF1dGhzZWNyZXQ" })).error).toBeNull();
 
     await other.client.from("measurements").insert({ user_id: other.id, measured_on: "2026-10-19", weight_kg: 70 });
@@ -58,7 +59,7 @@ describe("delete_my_account", () => {
         "profiles", "nutrition_targets", "user_preferences", "diary_entries", "water_logs", "recipes", "recipe_ingredients",
         "meal_plans", "planned_meals", "planned_meal_ingredients", "meal_consumptions", "workout_programs", "program_days",
         "program_exercises", "workout_sessions", "session_exercises", "session_sets", "measurements", "ai_conversations",
-        "ai_messages", "ai_request_log", "favorite_foods", "push_subscriptions", "notification_deliveries",
+        "ai_messages", "ai_request_log", "favorite_foods", "push_subscriptions", "notification_deliveries", "push_test_log",
       ] as const;
       for (const table of tables) {
         const column = table === "profiles" ? "id" : "user_id";

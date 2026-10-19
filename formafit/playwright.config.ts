@@ -66,6 +66,8 @@ export default defineConfig({
         VAPID_PRIVATE_KEY: process.env.E2E_VAPID_PRIVATE_KEY!,
         VAPID_SUBJECT: "mailto:e2e@example.com",
         CRON_SECRET: process.env.E2E_CRON_SECRET!,
+        // The reminders spec uses a fake push endpoint on this reserved, never-resolving host.
+        PUSH_TEST_ENDPOINT_HOSTS: "push.example.test",
       },
     },
   ],

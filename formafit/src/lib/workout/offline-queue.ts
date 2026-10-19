@@ -18,6 +18,21 @@ export interface PendingSet {
 
 export const PENDING_SETS_PREFIX = "formafit:pending-sets:";
 export const PENDING_SETS_EVENT = "formafit:pending-sets";
+/** Asks the sync loop to send queued sets now instead of at its next interval. */
+export const FLUSH_SETS_EVENT = "formafit:flush-sets";
+
+// Entries this tab is sending right now. The sync loop skips them so nothing is sent twice.
+const inFlight = new Set<string>();
+const flightKey = (sessionId: string, p: Pick<PendingSet, "setId" | "queuedAt">) => `${sessionId}:${p.setId}:${p.queuedAt}`;
+
+export function setInFlight(sessionId: string, p: Pick<PendingSet, "setId" | "queuedAt">, value: boolean) {
+  if (value) inFlight.add(flightKey(sessionId, p));
+  else inFlight.delete(flightKey(sessionId, p));
+}
+
+export function isInFlight(sessionId: string, p: Pick<PendingSet, "setId" | "queuedAt">): boolean {
+  return inFlight.has(flightKey(sessionId, p));
+}
 
 export type QueueStorage = Pick<Storage, "getItem" | "setItem" | "removeItem" | "key" | "length">;
 

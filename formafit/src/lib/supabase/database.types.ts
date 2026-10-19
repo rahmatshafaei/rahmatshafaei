@@ -393,6 +393,20 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"push_test_log": {
+                  Row: {
+                    "created_at": string,"id": number,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"id"?: never,"user_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"id"?: never,"user_id"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"recipe_ingredients": {
                   Row: {
                     "created_at": string,"food_id": string,"id": string,"note": string | null,"position": number,"quantity_g": number,"recipe_id": string,"user_id": string
@@ -617,7 +631,10 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
-            "complete_workout_session":
+            "claim_push_test":
+{ Args: Record<PropertyKey, never>; Returns: boolean
+                           },
+"complete_workout_session":
 { Args: { "p_feedback"?: Database["public"]['Enums']["session_feedback"],"p_notes"?: string,"p_session_id": string }; Returns: undefined
                            },
 "consume_ai_quota":

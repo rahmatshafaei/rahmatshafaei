@@ -101,3 +101,14 @@ export function cronSecret(): string | null {
   const s = process.env.CRON_SECRET;
   return s && s.length >= 32 ? s : null;
 }
+
+/**
+ * Extra push endpoint hosts, only for automated tests that use a fake push endpoint
+ * (comma-separated). Never set this in production.
+ */
+export function pushTestHosts(): string[] {
+  return (process.env.PUSH_TEST_ENDPOINT_HOSTS ?? "")
+    .split(",")
+    .map((h) => h.trim().toLowerCase())
+    .filter(Boolean);
+}

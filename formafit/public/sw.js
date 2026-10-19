@@ -55,12 +55,23 @@ self.addEventListener("fetch", (event) => {
   }
 });
 
+/** Only paths within this app (rejects "//other.site", "/\\other.site" and absolute URLs). */
+function sameOriginPath(value) {
+  try {
+    if (typeof value !== "string" || !value.startsWith("/")) return "/hem";
+    const url = new URL(value, self.location.origin);
+    return url.origin === self.location.origin ? url.pathname + url.search + url.hash : "/hem";
+  } catch {
+    return "/hem";
+  }
+}
+
 /** Push payloads are JSON: { title, body, url, tag }. Anything else is ignored. */
 function parsePush(data) {
   try {
     const p = data ? data.json() : null;
     if (!p || typeof p.title !== "string") return null;
-    const url = typeof p.url === "string" && p.url.startsWith("/") ? p.url : "/hem";
+    const url = sameOriginPath(p.url);
     return { title: p.title, body: typeof p.body === "string" ? p.body : "", url, tag: typeof p.tag === "string" ? p.tag : undefined };
   } catch {
     return null;
@@ -84,7 +95,7 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const target = new URL(event.notification.data?.url ?? "/hem", self.location.origin).href;
+  const target = new URL(sameOriginPath(event.notification.data?.url), self.location.origin).href;
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
       const existing = windows.find((w) => new URL(w.url).origin === self.location.origin);

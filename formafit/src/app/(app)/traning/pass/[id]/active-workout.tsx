@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { Check, CloudOff, Flag, History, Lightbulb, MessageSquare, Minus, Pause, Play, Plus, SkipForward, Timer, Trash2, Trophy, X } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -19,11 +19,14 @@ import { activeDurationSeconds, estimateOneRepMax, formatDuration, formatKg } fr
 import {
   applyPending,
   enqueuePending,
+  FLUSH_SETS_EVENT,
+  isInFlight,
   parsePending,
   PENDING_SETS_EVENT,
   PENDING_SETS_PREFIX,
   readPending,
   removePending,
+  setInFlight,
   type PendingSet,
 } from "@/lib/workout/offline-queue";
 import { useLocalStorage, useNow, useOnline, useSyncedState } from "@/lib/hooks";
@@ -48,6 +51,7 @@ type SetRow = Exercise["sets"][number];
 
 const parseNum = (v: string) => (v.trim() === "" ? null : Number(v.replace(",", ".")));
 const formatInput = (v: number | null) => v?.toString().replace(".", ",") ?? "";
+const toPendingEntry = (input: Omit<PendingSet, "queuedAt">): PendingSet => ({ ...input, queuedAt: Date.now() });
 
 /** Set logs queued on this device for the session (see offline-queue.ts). */
 function usePendingSets(sessionId: string): PendingSet[] {
@@ -72,13 +76,23 @@ function usePendingSets(sessionId: string): PendingSet[] {
   return useMemo(() => parsePending(raw), [raw]);
 }
 
-/** Sends queued set logs whenever the device is online, oldest first. */
-function useSyncPendingSets(sessionId: string, pendingCount: number, onRejected: () => void) {
+/**
+ * Sends queued set logs whenever the device is online, oldest first. `onSynced` is called for
+ * every entry the server accepted (so the screen keeps showing it), `onFinished` after a run
+ * that changed something.
+ */
+function useSyncPendingSets(
+  sessionId: string,
+  hasPending: boolean,
+  onSynced: (entry: PendingSet) => void,
+  onFinished: (result: { sent: number; rejected: number }) => void,
+) {
   const online = useOnline();
   const syncing = useRef(false);
+  const synced = useEffectEvent(onSynced);
+  const finished = useEffectEvent(onFinished);
   useEffect(() => {
-    if (!online || pendingCount === 0) return;
-    let cancelled = false;
+    if (!online || !hasPending) return;
     async function flush() {
       if (syncing.current) return;
       syncing.current = true;
@@ -87,7 +101,9 @@ function useSyncPendingSets(sessionId: string, pendingCount: number, onRejected:
       try {
         // Values entered while a sync runs are queued too, so repeat until the queue is empty.
         for (let round = 0; round < 5; round++) {
-          const items = readPending(sessionId).sort((a, b) => a.queuedAt - b.queuedAt);
+          const items = readPending(sessionId)
+            .filter((p) => !isInFlight(sessionId, p))
+            .sort((a, b) => a.queuedAt - b.queuedAt);
           if (items.length === 0) break;
           for (const p of items) {
             let res;
@@ -97,32 +113,35 @@ function useSyncPendingSets(sessionId: string, pendingCount: number, onRejected:
               return; // Still unreachable: keep the queue and retry later.
             }
             if (!res.ok && res.code === "unauthorized") {
-              // Keep everything until the user has signed in again.
               toast.error("Du har loggats ut. Logga in igen för att skicka seten som sparats på enheten.", { id: "offline-sets" });
-              return;
+              return; // Keep everything until the user has signed in again.
             }
-            // Otherwise the server has decided, so retrying cannot help: drop the entry either way.
-            removePending(sessionId, p.setId, p.queuedAt);
-            if (res.ok) sent++;
-            else {
+            if (!res.ok && res.code === "retryable") return; // Temporary server problem: retry later.
+            // The server has decided, so retrying cannot help.
+            if (res.ok) {
+              synced(p);
+              sent++;
+            } else {
               rejected++;
               toast.error(`Ett set som sparats på enheten kunde inte sparas: ${res.error}`);
             }
+            removePending(sessionId, p.setId, p.queuedAt);
           }
         }
       } finally {
         syncing.current = false;
-        if (!cancelled && sent > 0 && rejected === 0 && readPending(sessionId).length === 0) toast.success("Alla set är sparade.", { id: "offline-sets" });
-        if (!cancelled && rejected > 0) onRejected();
+        if (sent > 0 || rejected > 0) finished({ sent, rejected });
       }
     }
-    void flush();
-    const timer = setInterval(() => void flush(), 15_000);
+    const run = () => void flush();
+    run();
+    const timer = setInterval(run, 15_000);
+    window.addEventListener(FLUSH_SETS_EVENT, run);
     return () => {
-      cancelled = true;
       clearInterval(timer);
+      window.removeEventListener(FLUSH_SETS_EVENT, run);
     };
-  }, [online, pendingCount, sessionId, onRejected]);
+  }, [online, hasPending, sessionId]);
   return online;
 }
 
@@ -167,7 +186,6 @@ export function ActiveWorkout({ detail }: { detail: SessionDetail }) {
   const rest = useRestTimer(session.id);
   const pending = usePendingSets(session.id);
   const shown = useMemo(() => applyPending(exercises, pending), [exercises, pending]);
-  const online = useSyncPendingSets(session.id, pending.length, router.refresh);
 
   const elapsed = now ? activeDurationSeconds({ started_at: session.started_at, paused_at: pausedAt, paused_seconds: pausedSeconds, status }, new Date(now)) : null;
   const completedCount = shown.reduce((s, e) => s + e.sets.filter((x) => x.is_completed).length, 0);
@@ -176,6 +194,24 @@ export function ActiveWorkout({ detail }: { detail: SessionDetail }) {
   function patchSet(exerciseId: string, setId: string, patch: Partial<SetRow>) {
     setExercises((xs) => xs.map((e) => (e.id === exerciseId ? { ...e, sets: e.sets.map((s) => (s.id === setId ? { ...s, ...patch } : s)) } : e)));
   }
+
+  function patchSetById(setId: string, patch: Partial<SetRow>) {
+    setExercises((xs) => xs.map((e) => (e.sets.some((s) => s.id === setId) ? { ...e, sets: e.sets.map((s) => (s.id === setId ? { ...s, ...patch } : s)) } : e)));
+  }
+
+  // Re-render when a save stops being in flight (that changes no stored value).
+  const [, setFlightVersion] = useState(0);
+  const online = useSyncPendingSets(
+    session.id,
+    pending.length > 0,
+    (p) => patchSetById(p.setId, { weight_kg: p.weightKg, reps: p.reps, rir: p.rir, is_completed: p.isCompleted }),
+    ({ sent, rejected }) => {
+      if (sent > 0 && rejected === 0 && readPending(session.id).length === 0) toast.success("Alla set är sparade.", { id: "offline-sets" });
+      router.refresh();
+    },
+  );
+  // Saves that are on their way right now are not "waiting".
+  const waiting = pending.filter((p) => !isInFlight(session.id, p)).length;
 
   async function persistSet(ex: Exercise, set: SetRow, values: { weightKg: number | null; reps: number | null; isCompleted: boolean }) {
     const previous = { weight_kg: set.weight_kg, reps: set.reps, is_completed: set.is_completed };
@@ -188,29 +224,49 @@ export function ActiveWorkout({ detail }: { detail: SessionDetail }) {
       isCompleted: values.isCompleted,
       completedAt: values.isCompleted ? new Date().toISOString() : null,
     };
-    const queueLocally = () => {
-      if (enqueuePending(session.id, { ...input, queuedAt: Date.now() })) {
-        toast("Ingen uppkoppling – setet sparas på enheten och skickas automatiskt.", { id: "offline-sets" });
-        return true;
+    const entry = toPendingEntry(input);
+    // Older queued values for this set must reach the server first.
+    const behindQueue = readPending(session.id).some((p) => p.setId === set.id);
+    // Write ahead: the values survive on the device even if the app is closed mid-request.
+    setInFlight(session.id, entry, true);
+    const stored = enqueuePending(session.id, entry);
+    const done = () => setInFlight(session.id, entry, false);
+
+    const keepOnDevice = (message: string | null) => {
+      done();
+      setFlightVersion((v) => v + 1);
+      if (!stored) {
+        removePending(session.id, set.id, entry.queuedAt);
+        patchSet(ex.id, set.id, previous);
+        toast.error("Setet kunde inte sparas – varken på servern eller på enheten.");
+        return false;
       }
-      patchSet(ex.id, set.id, previous);
-      toast.error("Ingen uppkoppling, och setet kunde inte sparas på enheten.");
-      return false;
+      if (message) toast(message, { id: "offline-sets" });
+      if (navigator.onLine) window.dispatchEvent(new Event(FLUSH_SETS_EVENT));
+      return true;
     };
-    // Once a set has queued values, newer values queue behind them so they are sent in order.
-    if (!navigator.onLine || readPending(session.id).some((p) => p.setId === set.id)) return queueLocally();
+
+    const offline = "Ingen uppkoppling – setet sparas på enheten och skickas automatiskt.";
+    if (!navigator.onLine) return keepOnDevice(offline);
+    if (behindQueue) return keepOnDevice(null);
     let res;
     try {
       res = await logSet(input);
     } catch {
-      return queueLocally();
+      return keepOnDevice(offline);
     }
-    if (!res.ok) {
-      patchSet(ex.id, set.id, previous);
-      toast.error(res.error);
-      return false;
+    if (res.ok) {
+      done();
+      removePending(session.id, set.id, entry.queuedAt);
+      return true;
     }
-    return true;
+    if (res.code === "unauthorized") return keepOnDevice("Du har loggats ut – setet sparas på enheten tills du loggar in igen.");
+    if (res.code === "retryable") return keepOnDevice("Servern svarar inte just nu – setet sparas på enheten och skickas igen.");
+    done();
+    removePending(session.id, set.id, entry.queuedAt);
+    patchSet(ex.id, set.id, previous);
+    toast.error(res.error);
+    return false;
   }
 
   async function togglePause() {
@@ -239,14 +295,14 @@ export function ActiveWorkout({ detail }: { detail: SessionDetail }) {
               {elapsed === null ? "–" : formatDuration(elapsed)} · {completedCount}/{totalSets} set
               {status === "paused" ? " · Pausat" : ""}
             </p>
-            {!online || pending.length > 0 ? (
+            {!online || waiting > 0 ? (
               <p role="status" className="mt-0.5 flex items-center gap-1 text-xs font-medium text-warning-ink">
                 <CloudOff className="size-3.5 shrink-0" aria-hidden />
                 {!online
-                  ? pending.length > 0
-                    ? `Offline – ${pending.length} set sparade på enheten`
+                  ? waiting > 0
+                    ? `Offline – ${waiting} set sparade på enheten`
                     : "Offline – set sparas på enheten"
-                  : `Skickar ${pending.length} set…`}
+                  : `${waiting} set sparade på enheten – skickas…`}
               </p>
             ) : null}
           </div>

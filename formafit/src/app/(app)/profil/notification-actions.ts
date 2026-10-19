@@ -2,6 +2,8 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { authedAction, unwrap, UserFacingError } from "@/lib/actions";
+import { pushTestHosts } from "@/lib/env";
+import { isAllowedPushEndpoint } from "@/lib/push-endpoints";
 import { isValidTimeZone, TEST_NOTIFICATION } from "@/lib/reminders";
 import { configuredSender, deliverToUser } from "@/lib/services/push";
 
@@ -14,7 +16,10 @@ const base64urlBytes = (bytes: number) =>
     .refine((v) => Buffer.from(v, "base64url").length === bytes, "Ogiltig prenumeration.");
 
 const subscriptionSchema = z.object({
-  endpoint: z.url({ protocol: /^https$/, message: "Ogiltig prenumeration." }).max(2048),
+  endpoint: z
+    .string()
+    .max(2048)
+    .refine((v) => isAllowedPushEndpoint(v, pushTestHosts()), "Den här webbläsarens notistjänst stöds inte."),
   keys: z.object({
     // Uncompressed P-256 public key and the 16-byte auth secret (RFC 8291).
     p256dh: base64urlBytes(65),
@@ -93,6 +98,7 @@ export async function sendTestNotification() {
   return authedAction(async ({ supabase, userId }) => {
     const send = configuredSender();
     if (!send) throw new UserFacingError("Notiser är inte konfigurerade på servern.");
+    if (!unwrap(await supabase.rpc("claim_push_test"))) throw new UserFacingError("Du kan skicka högst 5 testnotiser per timme.");
     const result = await deliverToUser(supabase, userId, TEST_NOTIFICATION, send);
     if (result.sent === 0) throw new UserFacingError("Ingen enhet tog emot notisen. Aktivera notiser igen på den här enheten.");
     return { sent: result.sent };
