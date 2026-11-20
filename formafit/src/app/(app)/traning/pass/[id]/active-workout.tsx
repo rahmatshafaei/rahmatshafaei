@@ -453,7 +453,7 @@ function ExerciseCard({
             <Link href={`/traning/ovningar/${ex.exercise_id}`} className="font-semibold hover:underline">
               {ex.exercise.name}
             </Link>
-            {ex.superset_group ? <Badge className="bg-superset-soft text-macro-fat">Superset {ex.superset_group}</Badge> : null}
+            {ex.superset_group ? <Badge className="bg-superset-soft text-superset-ink">Superset {ex.superset_group}</Badge> : null}
             {allDone ? (
               <Badge variant="primary">
                 <Check /> Klar

@@ -395,7 +395,7 @@ function QuantityStep({
           </div>
         ))}
       </div>
-      {totals?.missing.length ? <p className="text-xs text-warning">Vissa näringsvärden saknas för det här livsmedlet.</p> : null}
+      {totals?.missing.length ? <p className="text-xs text-warning-ink">Vissa näringsvärden saknas för det här livsmedlet.</p> : null}
 
       <Button type="submit" size="lg" disabled={!valid} loading={pending}>
         {confirmLabel}

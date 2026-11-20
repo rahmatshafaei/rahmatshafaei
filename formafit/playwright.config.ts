@@ -40,7 +40,7 @@ export default defineConfig({
   },
   projects: [
     { name: "mobile", use: { ...devices["Pixel 7"] } },
-    { name: "desktop", use: { ...devices["Desktop Chrome"] }, testMatch: /(auth|diary)\.spec\.ts/ },
+    { name: "desktop", use: { ...devices["Desktop Chrome"] }, testMatch: /(auth|diary|a11y)\.spec\.ts/ },
   ],
   webServer: [
     ...(realAi

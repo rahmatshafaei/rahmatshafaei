@@ -23,7 +23,7 @@
   --ring: #18a058;
 
   --primary: #18a058;
-  --primary-strong: #0f7f45;
+  --primary-strong: #0d7540;
   --primary-hover: #0b6a39;
   --primary-soft: #e6f5ec;
   --primary-soft-hover: #d6efe0;
@@ -33,7 +33,7 @@
   --brand-ink: #13261b;
   --brand-ink-accent: #7ee2a8;
 
-  --danger: #c93c3c;
+  --danger: #b83333;
   --danger-strong: #ad3131;
   --danger-foreground: #ffffff;
   --danger-soft: #fbeaea;
@@ -43,11 +43,12 @@
   --warning-soft: #fdf3e1;
   --warning-ink: #7a5212;
   --warning-border: #f3dfb5;
-  --info: #2f6fdb;
+  --info: #2862c8;
   --info-soft: #e8f0fc;
   --info-ink: #1f4fa3;
   --info-border: #cfdcf5;
   --superset-soft: #efe7fb;
+  --superset-ink: #6b44b0;
 
   --macro-kcal: #18a058;
   --macro-protein: #3d7eea;
@@ -98,6 +99,7 @@
     --info-ink: #b4cdf8;
     --info-border: #2b3f63;
     --superset-soft: #2a2140;
+    --superset-ink: #c4adf0;
     --macro-kcal: #29ad68;
     --macro-protein: #5a8de3;
     --macro-carbs: #b8882a;
@@ -143,6 +145,7 @@
   --info-ink: #b4cdf8;
   --info-border: #2b3f63;
   --superset-soft: #2a2140;
+  --superset-ink: #c4adf0;
   --macro-kcal: #29ad68;
   --macro-protein: #5a8de3;
   --macro-carbs: #b8882a;
@@ -170,6 +173,7 @@
   --color-brand-ink: var(--brand-ink);
   --color-brand-ink-accent: var(--brand-ink-accent);
   --color-superset-soft: var(--superset-soft);
+  --color-superset-ink: var(--superset-ink);
   --color-primary-soft: var(--primary-soft);
   --color-primary-foreground: var(--primary-foreground);
   --color-danger: var(--danger);

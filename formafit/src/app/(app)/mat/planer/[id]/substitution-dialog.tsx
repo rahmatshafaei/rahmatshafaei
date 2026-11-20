@@ -27,7 +27,7 @@ function DiffCell({ value, unit }: { value: number; unit: string }) {
   const rounded = unit === "kcal" ? Math.round(value) : Math.round(value * 10) / 10;
   const sign = rounded > 0 ? "+" : "";
   return (
-    <span className={cn("tabular", Math.abs(rounded) < (unit === "kcal" ? 15 : 2) ? "text-muted-foreground" : rounded > 0 ? "text-warning" : "text-info")}>
+    <span className={cn("tabular", Math.abs(rounded) < (unit === "kcal" ? 15 : 2) ? "text-muted-foreground" : rounded > 0 ? "text-warning-ink" : "text-info-ink")}>
       {sign}
       {rounded.toLocaleString("sv-SE")} {unit}
     </span>
