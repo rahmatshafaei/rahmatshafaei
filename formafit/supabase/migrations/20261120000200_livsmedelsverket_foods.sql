@@ -7,7 +7,7 @@
 -- database, so they are stored as unknown.
 --
 -- Skipped because the published values do not fit the table's constraints:
---   3418 Matolja: energi 902 kcal utanför 0–900
+--   3418 Matolja: fett 102 g utanför 0–100
 
 insert into public.foods (
   owner_id, name, canonical_name, category, preparation,
