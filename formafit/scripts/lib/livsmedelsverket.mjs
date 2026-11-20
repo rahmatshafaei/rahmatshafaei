@@ -93,12 +93,13 @@ export function preparationFor(name, method) {
 
 /** Reasons a food cannot be stored as published (the table's check constraints). */
 function invalidReason(m) {
-  if (m.kcal !== null && (m.kcal < 0 || m.kcal > 950)) return `energi ${m.kcal} kcal utanför 0–950`;
+  // Nutrients first: an impossible amount (more than 100 g per 100 g) is the underlying problem.
   for (const [k, v] of [["protein", m.protein], ["kolhydrater", m.carbs], ["fett", m.fat], ["fiber", m.fiber]]) {
     if (v !== null && (v < 0 || v > 100)) return `${k} ${v} g utanför 0–100`;
   }
   const sum = (m.protein ?? 0) + (m.carbs ?? 0) + (m.fat ?? 0);
   if (sum > 100.5) return `protein + kolhydrater + fett = ${round2(sum)} g > 100,5 g`;
+  if (m.kcal !== null && (m.kcal < 0 || m.kcal > 900)) return `energi ${m.kcal} kcal utanför 0–900`;
   if (m.kcal === null && m.protein === null && m.carbs === null && m.fat === null) return "inga näringsvärden";
   return null;
 }

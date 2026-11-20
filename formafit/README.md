@@ -204,7 +204,7 @@ Accessibility is checked automatically. `tests/e2e/a11y.spec.ts` runs axe-core (
 The app does **not** invent verified nutrition facts:
 
 - **Livsmedelsverket's food database** (Livsmedelsdatabasen, about 2 600 foods, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.sv)) is stored with `source = livsmedelsverket` and `verification = verified`.
-  - **Values:** energy (kcal), protein, available carbohydrates, fat and fibre per 100 g are copied exactly as published. A food whose published values do not fit the table's constraints is skipped and listed at the top of the generated migration; it is never adjusted.
+  - **Values:** energy (kcal), protein, available carbohydrates, fat and fibre per 100 g are copied exactly as published. A food whose published values do not fit the table's constraints is skipped and listed at the top of the generated migration; it is never adjusted. In the current import that is one food, "Matolja", which is published with 102 g fat per 100 g.
   - **Allergens** are not part of that database, so they are stored as unknown. The UI says so, and the AI never treats these foods as safe for a declared allergy.
   - **Attribution:** every food page credits Livsmedelsverket with a link to the licence.
   - **Shopping-list section and raw/cooked state** are derived from the food name with simple keyword rules. They are only used to group shopping lists, never for nutrition.

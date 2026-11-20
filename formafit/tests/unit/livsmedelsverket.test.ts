@@ -45,6 +45,12 @@ describe("Livsmedelsverket import mapping", () => {
     );
     expect(toFoodRow(page.livsmedel[0], tooMuch)).toEqual({ skip: "protein + kolhydrater + fett = 101 g > 100,5 g" });
     expect(toFoodRow(page.livsmedel[0], [])).toEqual({ skip: "inga näringsvärden" });
+    // Livsmedelsverket's "Matolja" is published with 102 g fat and 902 kcal per 100 g: the
+    // impossible fat amount is reported, and nothing is rounded into range.
+    const oil = nutrients.map((n: { euroFIRkod: string; enhet: string }) =>
+      n.euroFIRkod === "FAT" ? { ...n, varde: 102 } : n.euroFIRkod === "ENERC" && n.enhet === "kcal" ? { ...n, varde: 902 } : n,
+    );
+    expect(toFoodRow({ nummer: 3418, namn: "Matolja" }, oil)).toEqual({ skip: "fett 102 g utanför 0–100" });
     expect(toFoodRow({ nummer: 9, namn: " " }, nutrients)).toEqual({ skip: "saknar nummer eller namn" });
   });
 

@@ -1,9 +1,3 @@
--- Pure fats are published at up to about 902 kcal/100 g (Livsmedelsverket's "Matolja"), so the
--- old 900 kcal limit rejected real data.
-alter table public.foods drop constraint foods_kcal_per_100g_check;
-alter table public.foods add constraint foods_kcal_per_100g_check
-  check (kcal_per_100g is null or kcal_per_100g between 0 and 950);
-
 -- Reference foods from an external database are identified by (source, source_ref), so a new
 -- import updates existing rows instead of duplicating them.
 create unique index foods_reference_source_ref_idx
