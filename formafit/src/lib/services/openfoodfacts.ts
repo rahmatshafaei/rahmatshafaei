@@ -48,7 +48,7 @@ const productSchema = z.object({
   categories_tags: z.array(z.string()).optional(),
   nutriments: z
     .object({
-      "energy-kcal_100g": nutrient(900),
+      "energy-kcal_100g": nutrient(950),
       energy_100g: nutrient(3800),
       proteins_100g: nutrient(100),
       carbohydrates_100g: nutrient(100),

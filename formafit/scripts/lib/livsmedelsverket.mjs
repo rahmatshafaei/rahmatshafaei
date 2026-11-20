@@ -93,7 +93,7 @@ export function preparationFor(name, method) {
 
 /** Reasons a food cannot be stored as published (the table's check constraints). */
 function invalidReason(m) {
-  if (m.kcal !== null && (m.kcal < 0 || m.kcal > 900)) return `energi ${m.kcal} kcal utanför 0–900`;
+  if (m.kcal !== null && (m.kcal < 0 || m.kcal > 950)) return `energi ${m.kcal} kcal utanför 0–950`;
   for (const [k, v] of [["protein", m.protein], ["kolhydrater", m.carbs], ["fett", m.fat], ["fiber", m.fiber]]) {
     if (v !== null && (v < 0 || v > 100)) return `${k} ${v} g utanför 0–100`;
   }

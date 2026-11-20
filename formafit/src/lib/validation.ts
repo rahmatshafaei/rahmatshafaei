@@ -86,7 +86,7 @@ export const foodSchema = z
     ),
     category: groceryCategory.default("other"),
     preparation: preparation.default("as_sold"),
-    kcal_per_100g: per100("Energi", 900),
+    kcal_per_100g: per100("Energi", 950),
     protein_per_100g: per100("Protein"),
     carbs_per_100g: per100("Kolhydrater"),
     fat_per_100g: per100("Fett"),
