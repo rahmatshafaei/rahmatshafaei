@@ -6,7 +6,18 @@ import { SetValidationError } from "@/lib/workout/logic";
 
 export type ActionResult<T = null> =
   | { ok: true; data: T }
-  | { ok: false; error: string; fieldErrors?: Record<string, string[]> };
+  | ActionFailure;
+
+export interface ActionFailure {
+  ok: false;
+  error: string;
+  fieldErrors?: Record<string, string[]>;
+  /**
+   * "unauthorized": the session has expired. "retryable": a temporary or unknown server problem.
+   * In both cases the client may keep unsent data and try again later.
+   */
+  code?: "unauthorized" | "retryable";
+}
 
 /** Errors whose message is safe to show to the user. */
 export class UserFacingError extends Error {
@@ -25,6 +36,9 @@ interface PostgrestLikeError {
 function isPostgrestError(e: unknown): e is PostgrestLikeError {
   return typeof e === "object" && e !== null && "code" in e && "message" in e;
 }
+
+/** Database errors that are final: retrying the same request cannot succeed. */
+const FINAL_DATABASE_CODES = new Set(["23505", "23503", "23514", "22023", "22P02", "42501", "P0002", "PGRST116", "28000"]);
 
 /** Maps database errors to Swedish messages without exposing internals. */
 export function databaseErrorMessage(e: PostgrestLikeError): string {
@@ -53,7 +67,7 @@ export function databaseErrorMessage(e: PostgrestLikeError): string {
   }
 }
 
-export function toActionError(e: unknown): { ok: false; error: string; fieldErrors?: Record<string, string[]> } {
+export function toActionError(e: unknown): ActionFailure {
   if (e instanceof z.ZodError) {
     const fieldErrors: Record<string, string[]> = {};
     for (const issue of e.issues) {
@@ -62,15 +76,17 @@ export function toActionError(e: unknown): { ok: false; error: string; fieldErro
     }
     return { ok: false, error: e.issues[0]?.message ?? "Ogiltiga värden.", fieldErrors };
   }
-  if (e instanceof UnauthorizedError || e instanceof UserFacingError || e instanceof NutritionInputError || e instanceof SetValidationError) {
+  if (e instanceof UnauthorizedError) return { ok: false, error: e.message, code: "unauthorized" };
+  if (e instanceof UserFacingError || e instanceof NutritionInputError || e instanceof SetValidationError) {
     return { ok: false, error: e.message };
   }
   if (isPostgrestError(e)) {
     console.error("[db]", e.code, e.message);
-    return { ok: false, error: databaseErrorMessage(e) };
+    const failure: ActionFailure = { ok: false, error: databaseErrorMessage(e) };
+    return FINAL_DATABASE_CODES.has(e.code ?? "") ? failure : { ...failure, code: "retryable" };
   }
   console.error("[action]", e);
-  return { ok: false, error: "Något gick fel. Försök igen." };
+  return { ok: false, error: "Något gick fel. Försök igen.", code: "retryable" };
 }
 
 /** Runs an authenticated server action body and converts thrown errors into results. */

@@ -7,7 +7,12 @@ const root = path.dirname(fileURLToPath(import.meta.url));
 
 // Runs against a real Supabase instance (local: `npm run db:start`).
 export default defineConfig({
-  resolve: { alias: { "@": path.resolve(root, "src") } },
+  resolve: {
+    alias: {
+      "@": path.resolve(root, "src"),
+      "server-only": path.resolve(root, "tests/stubs/server-only.ts"),
+    },
+  },
   test: {
     environment: "node",
     include: ["tests/integration/**/*.test.ts"],

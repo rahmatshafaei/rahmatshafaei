@@ -188,6 +188,8 @@ export const setLogSchema = z.object({
   reps: optionalDecimal(z.number().int().min(0).max(200)),
   rir: optionalDecimal(z.number().int().min(0).max(10)),
   isCompleted: z.boolean(),
+  /** Device time of completion, for sets that were queued offline. */
+  completedAt: z.iso.datetime().nullable().optional(),
 });
 
 export const measurementSchema = z

@@ -9,12 +9,12 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary-strong shadow-sm",
-        secondary: "bg-surface-muted text-foreground hover:bg-[#ebe7df]",
+        default: "bg-primary-strong text-primary-foreground hover:bg-primary-hover shadow-sm",
+        secondary: "bg-surface-muted text-foreground hover:bg-surface-muted-hover",
         outline: "border bg-surface text-foreground hover:bg-surface-muted",
         ghost: "text-foreground hover:bg-surface-muted",
-        soft: "bg-primary-soft text-primary-strong hover:bg-[#d6efe0]",
-        destructive: "bg-danger text-white hover:bg-[#ad3131]",
+        soft: "bg-primary-soft text-primary-strong hover:bg-primary-soft-hover",
+        destructive: "bg-danger-strong text-danger-foreground hover:opacity-90",
         link: "text-primary-strong underline-offset-4 hover:underline px-0",
       },
       size: {

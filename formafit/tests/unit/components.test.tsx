@@ -6,6 +6,7 @@ import { Markdown } from "@/components/coach/markdown";
 import { MacroBar, MacroLine } from "@/components/nutrition/macro-bar";
 import { ProgressRing } from "@/components/nutrition/progress-ring";
 import { VerificationBadge } from "@/components/nutrition/verification-badge";
+import { ThemeControl } from "@/components/layout/theme-control";
 import { ChipGroup } from "@/components/ui/choice";
 import { Field, Input } from "@/components/ui/input";
 
@@ -73,5 +74,20 @@ describe("coach markdown", () => {
     expect(container.querySelector("img")).toBeNull();
     expect(container.querySelector("script")).toBeNull();
     expect(container.textContent).toContain("<img");
+  });
+});
+
+describe("theme control", () => {
+  it("applies and remembers an explicit theme, and System clears it", async () => {
+    localStorage.clear();
+    render(<ThemeControl />);
+    expect(screen.getByRole("button", { name: "System" })).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(screen.getByRole("button", { name: "Mörkt" }));
+    expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(localStorage.getItem("formafit:theme")).toBe("dark");
+    expect(screen.getByRole("button", { name: "Mörkt" })).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(screen.getByRole("button", { name: "System" }));
+    expect(document.documentElement.dataset.theme).toBeUndefined();
+    expect(localStorage.getItem("formafit:theme")).toBeNull();
   });
 });

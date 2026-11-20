@@ -27,7 +27,7 @@ export function MacroBar({
           <span className={cn("size-2 rounded-full", meta.dot)} aria-hidden />
           {meta.label}
         </span>
-        <span className="tabular text-muted-foreground">
+        <span className="tabular whitespace-nowrap text-muted-foreground">
           <span className="font-semibold text-foreground">{formatNutrient(value, macro)}</span> / {Math.round(target)} g
         </span>
       </div>
@@ -60,7 +60,7 @@ export function MacroLine({
       {" · "}P {formatNutrient(totals.protein, "protein")} g · K {formatNutrient(totals.carbs, "carbs")} g · F{" "}
       {formatNutrient(totals.fat, "fat")} g
       {incomplete ? (
-        <span className="ml-1 text-warning" title="Vissa näringsvärden saknas för minst ett livsmedel">
+        <span className="ml-1 text-warning-ink" title="Vissa näringsvärden saknas för minst ett livsmedel">
           (ofullständig)
         </span>
       ) : null}

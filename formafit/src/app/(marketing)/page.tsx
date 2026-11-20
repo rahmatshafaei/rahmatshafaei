@@ -4,6 +4,7 @@ import { Logo } from "@/components/shared/logo";
 import { Button } from "@/components/ui/button";
 import { ProgressRing } from "@/components/nutrition/progress-ring";
 import { MacroBar } from "@/components/nutrition/macro-bar";
+import { Notice } from "@/components/ui/feedback";
 
 const FEATURES = [
   { icon: Apple, title: "Kalorier och makron", text: "Logga mat i gram. Allt räknas från livsmedelsdata – aldrig gissat." },
@@ -14,9 +15,15 @@ const FEATURES = [
   { icon: ChartLine, title: "Framsteg", text: "Vikt, mått, styrka och följsamhet – baserat på det du faktiskt loggat." },
 ];
 
-export default function LandingPage() {
+export default async function LandingPage({ searchParams }: { searchParams: Promise<{ konto?: string }> }) {
+  const { konto } = await searchParams;
   return (
     <div className="min-h-dvh">
+      {konto === "raderat" ? (
+        <div className="mx-auto max-w-6xl px-5 pt-4">
+          <Notice title="Ditt konto är raderat">All din data har tagits bort. Tack för att du använde FormaFit.</Notice>
+        </div>
+      ) : null}
       <header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5">
         <Logo />
         <nav className="flex items-center gap-2">
@@ -53,7 +60,7 @@ export default function LandingPage() {
           </div>
 
           <div className="relative mx-auto w-full max-w-md" aria-label="Exempel på dagsöversikt" role="img">
-            <div className="absolute -inset-6 -z-10 rounded-[2.5rem] bg-[radial-gradient(circle_at_30%_20%,#d9f2e3,transparent_60%),radial-gradient(circle_at_80%_80%,#f8e6c8,transparent_55%)]" />
+            <div className="absolute -inset-6 -z-10 rounded-[2.5rem] bg-[radial-gradient(circle_at_30%_20%,var(--glow-green),transparent_60%),radial-gradient(circle_at_80%_80%,var(--glow-amber),transparent_55%)]" />
             <div className="rounded-3xl border bg-surface p-6 shadow-[var(--shadow-float)]">
               <p className="text-sm text-muted-foreground">Exempel · Idag</p>
               <div className="mt-4 flex items-center gap-6">

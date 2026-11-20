@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Apple, Bot, ChartLine, Dumbbell, House, LogOut, UserRound } from "lucide-react";
+import { LogoutForm } from "@/components/layout/logout-form";
 import { Logo } from "@/components/shared/logo";
 import { cn } from "@/lib/utils";
 
@@ -63,12 +64,12 @@ export function Sidebar() {
           <UserRound className="size-5" aria-hidden />
           Profil
         </Link>
-        <form action="/auth/logout" method="post">
+        <LogoutForm>
           <button className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-surface-muted hover:text-foreground">
             <LogOut className="size-5" aria-hidden />
             Logga ut
           </button>
-        </form>
+        </LogoutForm>
       </div>
     </aside>
   );
@@ -83,9 +84,9 @@ export function BottomNav() {
       {!onCoach ? (
         <Link
           href="/coach"
-          className="no-print fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-40 flex items-center gap-2 rounded-full bg-[#13261b] py-3 pr-4 pl-3.5 text-sm font-semibold text-white shadow-[var(--shadow-float)] lg:hidden"
+          className="no-print fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-40 flex items-center gap-2 rounded-full bg-brand-ink py-3 pr-4 pl-3.5 text-sm font-semibold text-white shadow-[var(--shadow-float)] lg:hidden"
         >
-          <Bot className="size-5 text-[#7ee2a8]" aria-hidden />
+          <Bot className="size-5 text-brand-ink-accent" aria-hidden />
           Coach
         </Link>
       ) : null}

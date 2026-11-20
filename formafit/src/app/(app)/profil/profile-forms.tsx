@@ -10,6 +10,7 @@ import { ChipGroup } from "@/components/ui/choice";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
 import { Notice } from "@/components/ui/feedback";
 import { Field, Input, Select, UnitInput } from "@/components/ui/input";
+import { ThemeControl } from "@/components/layout/theme-control";
 import { ACTIVITY_LEVELS, caloriesFromMacros, type TargetResult } from "@/lib/nutrition/targets";
 import { EXPERIENCE_LABELS, GOAL_LABELS, SEX_LABELS } from "@/lib/labels";
 import { ALLERGY_OPTIONS, DIET_OPTIONS, EQUIPMENT_OPTIONS } from "@/lib/options";
@@ -339,6 +340,7 @@ export function PreferencesForm({ prefs, aiConfigured }: { prefs: Tables<"user_p
         });
       }}
     >
+      <ThemeControl />
       <Field label="Standardvila mellan set" htmlFor="pr-rest">
         <UnitInput unit="sek" id="pr-rest" value={s.defaultRestSeconds} onChange={(e) => setS({ ...s, defaultRestSeconds: e.target.value })} />
       </Field>

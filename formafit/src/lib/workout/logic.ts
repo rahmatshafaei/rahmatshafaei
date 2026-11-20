@@ -202,6 +202,17 @@ export function activeDurationSeconds(session: {
   return Math.max(0, Math.round((end - start) / 1000) - session.paused_seconds);
 }
 
+/**
+ * When a set was completed. Sets logged offline are synced later, so the device's time is kept
+ * when it is plausible (not before the session started); future times are clamped to now.
+ */
+export function resolveCompletedAt(claimed: string | null | undefined, sessionStartedAt: string, now = new Date()): string {
+  const t = claimed ? Date.parse(claimed) : NaN;
+  const start = Date.parse(sessionStartedAt);
+  if (Number.isFinite(t) && Number.isFinite(start) && t >= start) return new Date(Math.min(t, now.getTime())).toISOString();
+  return now.toISOString();
+}
+
 export function formatDuration(totalSeconds: number): string {
   const h = Math.floor(totalSeconds / 3600);
   const m = Math.floor((totalSeconds % 3600) / 60);

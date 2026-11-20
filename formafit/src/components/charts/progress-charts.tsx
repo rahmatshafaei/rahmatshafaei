@@ -6,7 +6,7 @@ import { addDays, formatDate } from "@/lib/dates";
 import { ChartCard } from "./chart-card";
 
 const axis = { fontSize: 12, fill: "var(--muted-foreground)" };
-const tooltipStyle = { borderRadius: 12, border: "1px solid var(--border)", boxShadow: "var(--shadow-card)", fontSize: 13 };
+const tooltipStyle = { borderRadius: 12, border: "1px solid var(--border)", boxShadow: "var(--shadow-card)", fontSize: 13, backgroundColor: "var(--surface)", color: "var(--foreground)" };
 const fmt = (v: number, d = 1) => v.toLocaleString("sv-SE", { maximumFractionDigits: d });
 
 export function WeightChart({ weights, weekly }: { weights: { date: string; weightKg: number }[]; weekly: { weekStart: string; average: number; count: number }[] }) {

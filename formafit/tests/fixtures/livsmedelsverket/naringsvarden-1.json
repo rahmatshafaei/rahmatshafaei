@@ -1,0 +1,12 @@
+[
+  {"namn":"Zink, Zn","euroFIRkod":"ZN","forkortning":"Zn","varde":0.0,"enhet":"mg","viktGram":100},
+  {"namn":"Protein","euroFIRkod":"PROT","forkortning":"Prot","varde":0.0,"enhet":"g","viktGram":100,"berakning":"0,0*6,25","vardetyp":"Bästa skattning"},
+  {"namn":"Salt, NaCl","euroFIRkod":"NACL","forkortning":"NaCl","varde":0.0,"enhet":"g","viktGram":100},
+  {"namn":"Sockerarter, totalt","euroFIRkod":"SUGAR","forkortning":"Mono/disack","varde":0.0,"enhet":"g","viktGram":100},
+  {"namn":"Kolhydrater, tillgängliga","euroFIRkod":"CHO","forkortning":"Kolh","varde":0.0,"enhet":"g","viktGram":100,"berakning":"100,0-(0,0+0,0+0,00+100,0+0,0+0,0)"},
+  {"namn":"Fiber","euroFIRkod":"FIBT","forkortning":"Fibe","varde":0.0,"enhet":"g","viktGram":100,"vardetyp":"Logisk nolla"},
+  {"namn":"Fett, totalt","euroFIRkod":"FAT","forkortning":"Fett","varde":100.0,"enhet":"g","viktGram":100,"kommentar":"Justerat ned från 101"},
+  {"namn":"Energi (kJ)","euroFIRkod":"ENERC","forkortning":"Ener","varde":3700,"enhet":"kJ","viktGram":100},
+  {"namn":"Energi (kcal)","euroFIRkod":"ENERC","forkortning":"Ener","varde":884,"enhet":"kcal","viktGram":100,"berakning":"3700,00*0,239"},
+  {"namn":"Summa mättade fettsyror","euroFIRkod":"FASAT","forkortning":"Mfet","varde":54.8,"enhet":"g","viktGram":100}
+]

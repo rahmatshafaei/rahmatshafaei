@@ -63,3 +63,34 @@ export async function signedUrls(auth: AuthContext, bucket: Bucket, paths: (stri
   }
   return map;
 }
+
+/** Every object path under a prefix (Storage lists one folder level at a time). */
+export async function listAllObjects(auth: AuthContext, bucket: Bucket, prefix: string): Promise<string[]> {
+  const files: string[] = [];
+  const folders = [prefix];
+  while (folders.length) {
+    const dir = folders.pop()!;
+    for (let offset = 0; ; offset += 1000) {
+      const { data, error } = await auth.supabase.storage.from(bucket).list(dir, { limit: 1000, offset });
+      if (error) throw error;
+      for (const item of data ?? []) {
+        // Folders are returned without an id.
+        if (item.id) files.push(`${dir}/${item.name}`);
+        else folders.push(`${dir}/${item.name}`);
+      }
+      if ((data ?? []).length < 1000) break;
+    }
+  }
+  return files;
+}
+
+/** Removes all of the user's uploaded files (used before account deletion). */
+export async function removeAllUserObjects(auth: AuthContext) {
+  for (const bucket of ["user-media", "progress-photos"] as const) {
+    const paths = await listAllObjects(auth, bucket, auth.userId);
+    for (let i = 0; i < paths.length; i += 100) {
+      const { error } = await auth.supabase.storage.from(bucket).remove(paths.slice(i, i + 100));
+      if (error) throw error;
+    }
+  }
+}

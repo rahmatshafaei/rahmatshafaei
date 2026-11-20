@@ -1,8 +1,8 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
-import { Check, Flag, History, Lightbulb, MessageSquare, Minus, Pause, Play, Plus, SkipForward, Timer, Trash2, Trophy, X } from "lucide-react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
+import { Check, CloudOff, Flag, History, Lightbulb, MessageSquare, Minus, Pause, Play, Plus, SkipForward, Timer, Trash2, Trophy, X } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,21 @@ import type { SessionDetail } from "@/lib/data/workouts";
 import { formatDate } from "@/lib/dates";
 import { MUSCLE_LABELS } from "@/lib/labels";
 import { activeDurationSeconds, estimateOneRepMax, formatDuration, formatKg } from "@/lib/workout/logic";
-import { useLocalStorage, useNow, useSyncedState } from "@/lib/hooks";
+import {
+  applyPending,
+  enqueuePending,
+  FLUSH_SETS_EVENT,
+  isInFlight,
+  parsePending,
+  PENDING_SETS_EVENT,
+  PENDING_SETS_PREFIX,
+  readPending,
+  removePending,
+  setInFlight,
+  type PendingSet,
+} from "@/lib/workout/offline-queue";
+import { useLocalStorage, useNow, useOnline, useSyncedState } from "@/lib/hooks";
+import { callAction } from "@/lib/offline";
 import { cn } from "@/lib/utils";
 import {
   abandonSession,
@@ -36,6 +50,100 @@ type Exercise = SessionDetail["exercises"][number];
 type SetRow = Exercise["sets"][number];
 
 const parseNum = (v: string) => (v.trim() === "" ? null : Number(v.replace(",", ".")));
+const formatInput = (v: number | null) => v?.toString().replace(".", ",") ?? "";
+const toPendingEntry = (input: Omit<PendingSet, "queuedAt">): PendingSet => ({ ...input, queuedAt: Date.now() });
+
+/** Set logs queued on this device for the session (see offline-queue.ts). */
+function usePendingSets(sessionId: string): PendingSet[] {
+  const raw = useSyncExternalStore(
+    (onChange) => {
+      window.addEventListener("storage", onChange);
+      window.addEventListener(PENDING_SETS_EVENT, onChange);
+      return () => {
+        window.removeEventListener("storage", onChange);
+        window.removeEventListener(PENDING_SETS_EVENT, onChange);
+      };
+    },
+    () => {
+      try {
+        return localStorage.getItem(PENDING_SETS_PREFIX + sessionId);
+      } catch {
+        return null;
+      }
+    },
+    () => null,
+  );
+  return useMemo(() => parsePending(raw), [raw]);
+}
+
+/**
+ * Sends queued set logs whenever the device is online, oldest first. `onSynced` is called for
+ * every entry the server accepted (so the screen keeps showing it), `onFinished` after a run
+ * that changed something.
+ */
+function useSyncPendingSets(
+  sessionId: string,
+  hasPending: boolean,
+  onSynced: (entry: PendingSet) => void,
+  onFinished: (result: { sent: number; rejected: number }) => void,
+) {
+  const online = useOnline();
+  const syncing = useRef(false);
+  const synced = useEffectEvent(onSynced);
+  const finished = useEffectEvent(onFinished);
+  useEffect(() => {
+    if (!online || !hasPending) return;
+    async function flush() {
+      if (syncing.current) return;
+      syncing.current = true;
+      let sent = 0;
+      let rejected = 0;
+      try {
+        // Values entered while a sync runs are queued too, so repeat until the queue is empty.
+        for (let round = 0; round < 5; round++) {
+          const items = readPending(sessionId)
+            .filter((p) => !isInFlight(sessionId, p))
+            .sort((a, b) => a.queuedAt - b.queuedAt);
+          if (items.length === 0) break;
+          for (const p of items) {
+            let res;
+            try {
+              res = await logSet({ setId: p.setId, weightKg: p.weightKg, reps: p.reps, rir: p.rir, isCompleted: p.isCompleted, completedAt: p.completedAt });
+            } catch {
+              return; // Still unreachable: keep the queue and retry later.
+            }
+            if (!res.ok && res.code === "unauthorized") {
+              toast.error("Du har loggats ut. Logga in igen för att skicka seten som sparats på enheten.", { id: "offline-sets" });
+              return; // Keep everything until the user has signed in again.
+            }
+            if (!res.ok && res.code === "retryable") return; // Temporary server problem: retry later.
+            // The server has decided, so retrying cannot help.
+            if (res.ok) {
+              synced(p);
+              sent++;
+            } else {
+              rejected++;
+              toast.error(`Ett set som sparats på enheten kunde inte sparas: ${res.error}`);
+            }
+            removePending(sessionId, p.setId, p.queuedAt);
+          }
+        }
+      } finally {
+        syncing.current = false;
+        if (sent > 0 || rejected > 0) finished({ sent, rejected });
+      }
+    }
+    const run = () => void flush();
+    run();
+    const timer = setInterval(run, 15_000);
+    window.addEventListener(FLUSH_SETS_EVENT, run);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener(FLUSH_SETS_EVENT, run);
+    };
+  }, [online, hasPending, sessionId]);
+  return online;
+}
 
 /** Rest timer state survives reloads via localStorage (a per-device convenience only). */
 function useRestTimer(sessionId: string) {
@@ -76,36 +184,100 @@ export function ActiveWorkout({ detail }: { detail: SessionDetail }) {
   const [notesOpen, setNotesOpen] = useState(false);
   const [, start] = useTransition();
   const rest = useRestTimer(session.id);
+  const pending = usePendingSets(session.id);
+  const shown = useMemo(() => applyPending(exercises, pending), [exercises, pending]);
 
   const elapsed = now ? activeDurationSeconds({ started_at: session.started_at, paused_at: pausedAt, paused_seconds: pausedSeconds, status }, new Date(now)) : null;
-  const completedCount = exercises.reduce((s, e) => s + e.sets.filter((x) => x.is_completed).length, 0);
-  const totalSets = exercises.reduce((s, e) => s + e.sets.length, 0);
+  const completedCount = shown.reduce((s, e) => s + e.sets.filter((x) => x.is_completed).length, 0);
+  const totalSets = shown.reduce((s, e) => s + e.sets.length, 0);
 
   function patchSet(exerciseId: string, setId: string, patch: Partial<SetRow>) {
     setExercises((xs) => xs.map((e) => (e.id === exerciseId ? { ...e, sets: e.sets.map((s) => (s.id === setId ? { ...s, ...patch } : s)) } : e)));
   }
 
+  function patchSetById(setId: string, patch: Partial<SetRow>) {
+    setExercises((xs) => xs.map((e) => (e.sets.some((s) => s.id === setId) ? { ...e, sets: e.sets.map((s) => (s.id === setId ? { ...s, ...patch } : s)) } : e)));
+  }
+
+  // Re-render when a save stops being in flight (that changes no stored value).
+  const [, setFlightVersion] = useState(0);
+  const online = useSyncPendingSets(
+    session.id,
+    pending.length > 0,
+    (p) => patchSetById(p.setId, { weight_kg: p.weightKg, reps: p.reps, rir: p.rir, is_completed: p.isCompleted }),
+    ({ sent, rejected }) => {
+      if (sent > 0 && rejected === 0 && readPending(session.id).length === 0) toast.success("Alla set är sparade.", { id: "offline-sets" });
+      router.refresh();
+    },
+  );
+  // Saves that are on their way right now are not "waiting".
+  const waiting = pending.filter((p) => !isInFlight(session.id, p)).length;
+
   async function persistSet(ex: Exercise, set: SetRow, values: { weightKg: number | null; reps: number | null; isCompleted: boolean }) {
     const previous = { weight_kg: set.weight_kg, reps: set.reps, is_completed: set.is_completed };
     patchSet(ex.id, set.id, { weight_kg: values.weightKg, reps: values.reps, is_completed: values.isCompleted });
-    const res = await logSet({ setId: set.id, weightKg: values.weightKg, reps: values.reps, rir: set.rir, isCompleted: values.isCompleted });
-    if (!res.ok) {
-      patchSet(ex.id, set.id, previous);
-      toast.error(res.error);
-      return false;
+    const input = {
+      setId: set.id,
+      weightKg: values.weightKg,
+      reps: values.reps,
+      rir: set.rir,
+      isCompleted: values.isCompleted,
+      completedAt: values.isCompleted ? new Date().toISOString() : null,
+    };
+    const entry = toPendingEntry(input);
+    // Older queued values for this set must reach the server first.
+    const behindQueue = readPending(session.id).some((p) => p.setId === set.id);
+    // Write ahead: the values survive on the device even if the app is closed mid-request.
+    setInFlight(session.id, entry, true);
+    const stored = enqueuePending(session.id, entry);
+    const done = () => setInFlight(session.id, entry, false);
+
+    const keepOnDevice = (message: string | null) => {
+      done();
+      setFlightVersion((v) => v + 1);
+      if (!stored) {
+        removePending(session.id, set.id, entry.queuedAt);
+        patchSet(ex.id, set.id, previous);
+        toast.error("Setet kunde inte sparas – varken på servern eller på enheten.");
+        return false;
+      }
+      if (message) toast(message, { id: "offline-sets" });
+      if (navigator.onLine) window.dispatchEvent(new Event(FLUSH_SETS_EVENT));
+      return true;
+    };
+
+    const offline = "Ingen uppkoppling – setet sparas på enheten och skickas automatiskt.";
+    if (!navigator.onLine) return keepOnDevice(offline);
+    if (behindQueue) return keepOnDevice(null);
+    let res;
+    try {
+      res = await logSet(input);
+    } catch {
+      return keepOnDevice(offline);
     }
-    return true;
+    if (res.ok) {
+      done();
+      removePending(session.id, set.id, entry.queuedAt);
+      return true;
+    }
+    if (res.code === "unauthorized") return keepOnDevice("Du har loggats ut – setet sparas på enheten tills du loggar in igen.");
+    if (res.code === "retryable") return keepOnDevice("Servern svarar inte just nu – setet sparas på enheten och skickas igen.");
+    done();
+    removePending(session.id, set.id, entry.queuedAt);
+    patchSet(ex.id, set.id, previous);
+    toast.error(res.error);
+    return false;
   }
 
   async function togglePause() {
     if (status === "paused") {
-      const res = await resumeSession(session.id);
+      const res = await callAction(() => resumeSession(session.id));
       if (!res.ok) return void toast.error(res.error);
       if (pausedAt) setPausedSeconds((p) => p + Math.round((Date.now() - new Date(pausedAt).getTime()) / 1000));
       setPausedAt(null);
       setStatus("in_progress");
     } else {
-      const res = await pauseSession(session.id);
+      const res = await callAction(() => pauseSession(session.id));
       if (!res.ok) return void toast.error(res.error);
       setPausedAt(new Date().toISOString());
       setStatus("paused");
@@ -123,6 +295,16 @@ export function ActiveWorkout({ detail }: { detail: SessionDetail }) {
               {elapsed === null ? "–" : formatDuration(elapsed)} · {completedCount}/{totalSets} set
               {status === "paused" ? " · Pausat" : ""}
             </p>
+            {!online || waiting > 0 ? (
+              <p role="status" className="mt-0.5 flex items-center gap-1 text-xs font-medium text-warning-ink">
+                <CloudOff className="size-3.5 shrink-0" aria-hidden />
+                {!online
+                  ? waiting > 0
+                    ? `Offline – ${waiting} set sparade på enheten`
+                    : "Offline – set sparas på enheten"
+                  : `${waiting} set sparade på enheten – skickas…`}
+              </p>
+            ) : null}
           </div>
           <Button variant="outline" size="icon" onClick={togglePause} aria-label={status === "paused" ? "Fortsätt passet" : "Pausa passet"}>
             {status === "paused" ? <Play /> : <Pause />}
@@ -143,7 +325,7 @@ export function ActiveWorkout({ detail }: { detail: SessionDetail }) {
       ) : null}
 
       <div className="flex flex-col gap-4">
-        {exercises.map((ex) => (
+        {shown.map((ex) => (
           <ExerciseCard
             key={ex.id}
             ex={ex}
@@ -158,21 +340,21 @@ export function ActiveWorkout({ detail }: { detail: SessionDetail }) {
             }}
             onAddSet={() =>
               start(async () => {
-                const res = await addSet(ex.id);
+                const res = await callAction(() => addSet(ex.id));
                 if (!res.ok) return void toast.error(res.error);
                 setExercises((xs) => xs.map((e) => (e.id === ex.id ? { ...e, sets: [...e.sets, res.data] } : e)));
               })
             }
             onRemoveSet={(setId) =>
               start(async () => {
-                const res = await removeSet(setId);
+                const res = await callAction(() => removeSet(setId));
                 if (!res.ok) return void toast.error(res.error);
                 setExercises((xs) => xs.map((e) => (e.id === ex.id ? { ...e, sets: e.sets.filter((s) => s.id !== setId) } : e)));
               })
             }
             onRemoveExercise={() =>
               start(async () => {
-                const res = await removeSessionExercise(ex.id);
+                const res = await callAction(() => removeSessionExercise(ex.id));
                 if (!res.ok) return void toast.error(res.error);
                 router.refresh();
               })
@@ -189,8 +371,8 @@ export function ActiveWorkout({ detail }: { detail: SessionDetail }) {
 
       {rest.active ? (
         <div className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-40 px-4 lg:bottom-6 lg:left-64">
-          <div className="mx-auto flex max-w-md items-center gap-3 rounded-full bg-[#13261b] py-2 pr-2 pl-4 text-white shadow-[var(--shadow-float)]" role="timer" aria-live="polite">
-            <Timer className="size-5 text-[#7ee2a8]" aria-hidden />
+          <div className="mx-auto flex max-w-md items-center gap-3 rounded-full border border-white/10 bg-brand-ink py-2 pr-2 pl-4 text-white shadow-[var(--shadow-float)]" role="timer" aria-live="polite">
+            <Timer className="size-5 text-brand-ink-accent" aria-hidden />
             <span className="flex-1 text-lg font-semibold tabular">{formatDuration(rest.remaining)}</span>
             <Button size="sm" variant="ghost" className="text-white hover:bg-white/10" onClick={() => rest.add(-15)} aria-label="15 sekunder kortare vila">
               <Minus /> 15
@@ -209,13 +391,22 @@ export function ActiveWorkout({ detail }: { detail: SessionDetail }) {
         open={picker}
         onOpenChange={setPicker}
         onPick={async (e) => {
-          const res = await addSessionExercise({ sessionId: session.id, exerciseId: e.id });
+          const res = await callAction(() => addSessionExercise({ sessionId: session.id, exerciseId: e.id }));
           if (!res.ok) return void toast.error(res.error);
           setPicker(false);
           router.refresh();
         }}
       />
-      <FinishDialog open={finishOpen} onClose={() => setFinishOpen(false)} onFinished={rest.stop} sessionId={session.id} completedCount={completedCount} totalSets={totalSets} initialNotes={session.notes ?? ""} />
+      <FinishDialog
+        open={finishOpen}
+        onClose={() => setFinishOpen(false)}
+        onFinished={rest.stop}
+        sessionId={session.id}
+        completedCount={completedCount}
+        totalSets={totalSets}
+        pendingCount={pending.length}
+        initialNotes={session.notes ?? ""}
+      />
       <SessionNotesDialog open={notesOpen} onClose={() => setNotesOpen(false)} sessionId={session.id} initial={session.notes ?? ""} />
       <ConfirmDialog
         open={abandonOpen}
@@ -225,7 +416,7 @@ export function ActiveWorkout({ detail }: { detail: SessionDetail }) {
         description="Passet markeras som avbrutet och räknas inte som genomfört. Loggade set sparas inte i din styrkehistorik."
         confirmLabel="Avbryt passet"
         onConfirm={async () => {
-          const res = await abandonSession(session.id);
+          const res = await callAction(() => abandonSession(session.id));
           if (!res.ok) return void toast.error(res.error);
           rest.stop();
           router.push("/traning");
@@ -262,7 +453,7 @@ function ExerciseCard({
             <Link href={`/traning/ovningar/${ex.exercise_id}`} className="font-semibold hover:underline">
               {ex.exercise.name}
             </Link>
-            {ex.superset_group ? <Badge className="bg-[#efe7fb] text-macro-fat">Superset {ex.superset_group}</Badge> : null}
+            {ex.superset_group ? <Badge className="bg-superset-soft text-superset-ink">Superset {ex.superset_group}</Badge> : null}
             {allDone ? (
               <Badge variant="primary">
                 <Check /> Klar
@@ -342,7 +533,7 @@ function ExerciseCard({
             onChange={(e) => setNotes(e.target.value)}
             onBlur={async () => {
               if (notes === (ex.notes ?? "")) return;
-              const res = await updateSessionExerciseNotes({ id: ex.id, notes });
+              const res = await callAction(() => updateSessionExerciseNotes({ id: ex.id, notes }));
               if (!res.ok) toast.error(res.error);
             }}
           />
@@ -367,8 +558,9 @@ function SetRowInput({
   onPersist: (values: { weightKg: number | null; reps: number | null; isCompleted: boolean }) => Promise<boolean>;
   onCompleted: (weight: number, reps: number) => void;
 }) {
-  const [weight, setWeight] = useState(set.weight_kg?.toString().replace(".", ",") ?? "");
-  const [reps, setReps] = useState(set.reps?.toString() ?? "");
+  // Follow the set's values when they change from outside (queued values, a refresh).
+  const [weight, setWeight] = useSyncedState(formatInput(set.weight_kg));
+  const [reps, setReps] = useSyncedState(set.reps?.toString() ?? "");
   // Saves for one set run strictly in order (e.g. a blur save followed by the ✓ click).
   const queue = useRef<Promise<unknown>>(Promise.resolve());
 
@@ -388,7 +580,7 @@ function SetRowInput({
 
   return (
     <div className={cn("grid grid-cols-[2rem_1fr_1fr_3rem] items-center gap-2", set.is_completed && "opacity-90")}>
-      <span className={cn("flex size-7 items-center justify-center rounded-lg text-sm font-semibold", set.is_completed ? "bg-primary text-white" : "bg-surface-muted")}>{index + 1}</span>
+      <span className={cn("flex size-7 items-center justify-center rounded-lg text-sm font-semibold", set.is_completed ? "bg-primary-strong text-primary-foreground" : "bg-surface-muted")}>{index + 1}</span>
       <input
         inputMode="decimal"
         aria-label={`Vikt set ${index + 1}`}
@@ -445,6 +637,7 @@ function FinishDialog({
   sessionId,
   completedCount,
   totalSets,
+  pendingCount,
   initialNotes,
   onFinished,
 }: {
@@ -454,6 +647,7 @@ function FinishDialog({
   sessionId: string;
   completedCount: number;
   totalSets: number;
+  pendingCount: number;
   initialNotes: string;
 }) {
   const router = useRouter();
@@ -492,6 +686,11 @@ function FinishDialog({
               </div>
               <p className="text-xs text-muted-foreground">Används för att göra progressionsförslagen försiktigare.</p>
             </div>
+            {pendingCount > 0 ? (
+              <Notice variant="warning" title={`${pendingCount} set är inte skickade än`}>
+                De ligger sparade på enheten och skickas automatiskt när du är online. Sedan kan du spara passet.
+              </Notice>
+            ) : null}
             <Field label="Anteckningar" htmlFor="finish-notes" optional>
               <Textarea id="finish-notes" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
             </Field>
@@ -502,11 +701,11 @@ function FinishDialog({
             Fortsätt träna
           </Button>
           <Button
-            disabled={completedCount === 0}
+            disabled={completedCount === 0 || pendingCount > 0}
             loading={pending}
             onClick={() =>
               start(async () => {
-                const res = await completeSession({ id: sessionId, feedback, notes });
+                const res = await callAction(() => completeSession({ id: sessionId, feedback, notes }));
                 if (!res.ok) return void toast.error(res.error);
                 onFinished();
                 toast.success("Snyggt jobbat! Passet är sparat.");
@@ -534,7 +733,7 @@ function SessionNotesDialog({ open, onClose, sessionId, initial }: { open: boole
             loading={pending}
             onClick={() =>
               start(async () => {
-                const res = await updateSessionNotes({ id: sessionId, notes });
+                const res = await callAction(() => updateSessionNotes({ id: sessionId, notes }));
                 if (!res.ok) return void toast.error(res.error);
                 onClose();
               })

@@ -219,6 +219,20 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"notification_deliveries": {
+                  Row: {
+                    "kind": string,"local_date": string,"sent_at": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "kind": string,"local_date": string,"sent_at"?: string,"user_id": string
+                  }
+                  Update: {
+                    "kind"?: string,"local_date"?: string,"sent_at"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"nutrition_targets": {
                   Row: {
                     "activity_multiplier": number | null,"bmr_kcal": number | null,"calculation_inputs": Json | null,"calories": number,"carbs_g": number,"created_at": string,"fat_g": number,"goal_adjustment_pct": number | null,"is_manually_adjusted": boolean,"method": string,"protein_g": number,"tdee_kcal": number | null,"updated_at": string,"user_id": string
@@ -361,6 +375,34 @@ isOneToOne: false
                   }
                   Update: {
                     "created_at"?: string,"id"?: string,"notes"?: string | null,"pose"?: string,"storage_path"?: string,"taken_on"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"push_subscriptions": {
+                  Row: {
+                    "auth": string,"created_at": string,"endpoint": string,"id": string,"last_success_at": string | null,"p256dh": string,"user_agent": string | null,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "auth": string,"created_at"?: string,"endpoint": string,"id"?: string,"last_success_at"?: string | null,"p256dh": string,"user_agent"?: string | null,"user_id": string
+                  }
+                  Update: {
+                    "auth"?: string,"created_at"?: string,"endpoint"?: string,"id"?: string,"last_success_at"?: string | null,"p256dh"?: string,"user_agent"?: string | null,"user_id"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"push_test_log": {
+                  Row: {
+                    "created_at": string,"id": number,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"id"?: never,"user_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"id"?: never,"user_id"?: string
                   }
                   Relationships: [
                     
@@ -511,14 +553,14 @@ isOneToOne: false
                   ]
                 },"user_preferences": {
                   Row: {
-                    "ai_share_logs": boolean,"created_at": string,"default_rest_seconds": number,"updated_at": string,"user_id": string,"water_goal_ml": number,"weight_increment_kg": number
+                    "ai_share_logs": boolean,"created_at": string,"default_rest_seconds": number,"meal_reminder_time": string | null,"reminder_timezone": string,"updated_at": string,"user_id": string,"water_goal_ml": number,"weight_increment_kg": number,"workout_reminder_time": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "ai_share_logs"?: boolean,"created_at"?: string,"default_rest_seconds"?: number,"updated_at"?: string,"user_id": string,"water_goal_ml"?: number,"weight_increment_kg"?: number
+                    "ai_share_logs"?: boolean,"created_at"?: string,"default_rest_seconds"?: number,"meal_reminder_time"?: string | null,"reminder_timezone"?: string,"updated_at"?: string,"user_id": string,"water_goal_ml"?: number,"weight_increment_kg"?: number,"workout_reminder_time"?: string | null
                   }
                   Update: {
-                    "ai_share_logs"?: boolean,"created_at"?: string,"default_rest_seconds"?: number,"updated_at"?: string,"user_id"?: string,"water_goal_ml"?: number,"weight_increment_kg"?: number
+                    "ai_share_logs"?: boolean,"created_at"?: string,"default_rest_seconds"?: number,"meal_reminder_time"?: string | null,"reminder_timezone"?: string,"updated_at"?: string,"user_id"?: string,"water_goal_ml"?: number,"weight_increment_kg"?: number,"workout_reminder_time"?: string | null
                   }
                   Relationships: [
                     {
@@ -589,7 +631,10 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
-            "complete_workout_session":
+            "claim_push_test":
+{ Args: Record<PropertyKey, never>; Returns: boolean
+                           },
+"complete_workout_session":
 { Args: { "p_feedback"?: Database["public"]['Enums']["session_feedback"],"p_notes"?: string,"p_session_id": string }; Returns: undefined
                            },
 "consume_ai_quota":
@@ -607,6 +652,9 @@ isOneToOne: false
 "create_workout_program":
 { Args: { "p_program": Json }; Returns: string
                            },
+"delete_my_account":
+{ Args: Record<PropertyKey, never>; Returns: undefined
+                           },
 "duplicate_meal_plan":
 { Args: { "p_name": string,"p_plan_id": string,"p_start_date": string }; Returns: string
                            },
@@ -621,6 +669,49 @@ isOneToOne: false
               "consumption_id": string,"created": boolean
             }[]
                            },
+"register_push_subscription":
+{ Args: { "p_auth": string,"p_endpoint": string,"p_p256dh": string,"p_user_agent"?: string }; Returns: undefined
+                           },
+"reminder_candidates":
+{ Args: { "p_now"?: string }; Returns: {
+              "detail": string,"kind": string,"local_date": string,"user_id": string
+            }[]
+                           },
+"search_foods":
+{ Args: { "p_limit"?: number,"p_query": string }; Returns: {
+              "allergens": (string)[],
+"allergens_known": boolean,
+"barcode": string | null,
+"brand": string | null,
+"canonical_name": string,
+"carbs_per_100g": number | null,
+"category": Database["public"]['Enums']["grocery_category"],
+"created_at": string,
+"diet_tags": (string)[],
+"fat_per_100g": number | null,
+"fiber_per_100g": number | null,
+"id": string,
+"image_credit": string | null,
+"image_path": string | null,
+"image_url": string | null,
+"is_archived": boolean,
+"kcal_per_100g": number | null,
+"name": string,
+"owner_id": string | null,
+"preparation": Database["public"]['Enums']["food_preparation"],
+"protein_per_100g": number | null,
+"source": Database["public"]['Enums']["food_source"],
+"source_note": string | null,
+"source_ref": string | null,
+"updated_at": string,
+"verification": Database["public"]['Enums']["verification_status"]
+            }[]
+                          SetofOptions: {
+        from: "*"
+        to: "foods"
+        isOneToOne: false
+        isSetofReturn: true
+      } },
 "set_active_program":
 { Args: { "p_program_id": string }; Returns: undefined
                            },
