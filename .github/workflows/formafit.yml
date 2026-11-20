@@ -18,10 +18,11 @@ defaults:
   run:
     working-directory: formafit
 
+# Pinned: Playwright 1.56 cannot install its browser dependencies on newer Ubuntu images.
 jobs:
   checks:
     name: Lint, types and unit tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
@@ -37,7 +38,7 @@ jobs:
 
   database-and-e2e:
     name: Integration and E2E tests (local Supabase)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v5
