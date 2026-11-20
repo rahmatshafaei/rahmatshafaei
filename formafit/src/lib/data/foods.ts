@@ -44,29 +44,11 @@ export async function summarizeFoods(auth: AuthContext, rows: FoodRow[]) {
   return rows.map((r) => toFoodSummary(r, urls, auth.userId));
 }
 
-/** Escapes LIKE wildcards in user input. */
-export function escapeLike(value: string) {
-  return value.replace(/[\\%_]/g, (c) => `\\${c}`);
-}
-
+/** Ranked search (see search_foods() in the migrations): best matches, own foods and verified data first. */
 export async function searchLocalFoods(auth: AuthContext, query: string, limit = 25): Promise<FoodSummary[]> {
-  const q = query.trim();
-  let builder = auth.supabase.from("foods").select(FOOD_COLUMNS).eq("is_archived", false).limit(limit);
-  if (q) {
-    const pattern = `%${escapeLike(q)}%`;
-    builder = builder.or(`name.ilike.${JSON.stringify(pattern)},brand.ilike.${JSON.stringify(pattern)}`);
-  } else {
-    builder = builder.order("name");
-  }
-  const { data, error } = await builder;
+  const { data, error } = await auth.supabase.rpc("search_foods", { p_query: query.trim(), p_limit: limit }).select(FOOD_COLUMNS);
   if (error) throw error;
-  const lower = q.toLocaleLowerCase("sv-SE");
-  const rank = (f: FoodRow) => {
-    const name = f.name.toLocaleLowerCase("sv-SE");
-    return (name.startsWith(lower) ? 0 : 2) + (f.owner_id ? 0 : 1);
-  };
-  const sorted = [...(data ?? [])].sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name, "sv-SE"));
-  return summarizeFoods(auth, sorted);
+  return summarizeFoods(auth, (data ?? []) as unknown as FoodRow[]);
 }
 
 export async function getFoodsByIds(auth: AuthContext, ids: string[]) {

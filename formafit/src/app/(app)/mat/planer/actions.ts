@@ -358,14 +358,24 @@ export async function replaceIngredient(raw: unknown) {
 }
 
 async function substitutesFor(auth: AuthContext, foodId: string, quantityG: number) {
-  const [{ data: profile }, originalRows, candidateRows] = await Promise.all([
+  const [{ data: profile }, originalRows] = await Promise.all([
     auth.supabase.from("profiles").select("allergies, diet_preferences").eq("id", auth.userId).single(),
     auth.supabase.from("foods").select(FOOD_COLUMNS).eq("id", foodId).single(),
-    auth.supabase.from("foods").select(FOOD_COLUMNS).eq("is_archived", false).limit(400),
   ]);
   if (originalRows.error) throw originalRows.error;
   const [original] = await summarizeFoods(auth, [originalRows.data]);
-  const candidates = await summarizeFoods(auth, candidateRows.data ?? []);
+  // Candidates: the same grocery section, plus the user's own foods and the everyday starter set
+  // (which also covers alternatives from other sections, such as tofu for chicken).
+  const base = () => auth.supabase.from("foods").select(FOOD_COLUMNS).eq("is_archived", false).not("kcal_per_100g", "is", null);
+  const candidateResults = await Promise.all([
+    base().eq("category", original.category).limit(1000),
+    base().eq("owner_id", auth.userId).limit(300),
+    base().eq("source", "starter_reference").limit(300),
+  ]);
+  const candidateError = candidateResults.find((r) => r.error)?.error;
+  if (candidateError) throw candidateError;
+  const candidateRows = [...new Map(candidateResults.flatMap((r) => r.data ?? []).map((f) => [f.id, f])).values()];
+  const candidates = await summarizeFoods(auth, candidateRows);
   const options = rankSubstitutes(original, quantityG, candidates, {
     allergies: profile?.allergies ?? [],
     dietPreferences: profile?.diet_preferences ?? [],

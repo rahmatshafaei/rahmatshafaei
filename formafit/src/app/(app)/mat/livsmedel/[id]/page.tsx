@@ -13,6 +13,9 @@ import { uuid } from "@/lib/validation";
 import { FoodForm } from "../food-form";
 import { ArchiveFoodButton } from "./archive-button";
 
+const LIVSMEDELSVERKET_URL = "https://www.livsmedelsverket.se/om-oss/psidata/livsmedelsdatabasen";
+const CC_BY_URL = "https://creativecommons.org/licenses/by/4.0/deed.sv";
+
 export const metadata: Metadata = { title: "Livsmedel" };
 
 export default async function FoodDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -46,7 +49,19 @@ export default async function FoodDetailPage({ params }: { params: Promise<{ id:
                 <dt className="text-muted-foreground">Allergener</dt>
                 <dd>{food.allergens.length ? food.allergens.map((a) => ALLERGENS[a as keyof typeof ALLERGENS] ?? a).join(", ") : "Inga angivna"}</dd>
               </dl>
-              {meta?.source_ref ? (
+              {food.source === "livsmedelsverket" ? (
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Data från{" "}
+                  <a href={LIVSMEDELSVERKET_URL} target="_blank" rel="noopener noreferrer" className="text-primary-strong underline">
+                    Livsmedelsverkets livsmedelsdatabas
+                  </a>
+                  , licens{" "}
+                  <a href={CC_BY_URL} target="_blank" rel="noopener noreferrer" className="text-primary-strong underline">
+                    CC BY 4.0
+                  </a>
+                  .
+                </p>
+              ) : meta?.source_ref?.startsWith("https://") ? (
                 <a href={meta.source_ref} target="_blank" rel="noopener noreferrer" className="mt-3 inline-block text-primary-strong underline">
                   Visa källa
                 </a>

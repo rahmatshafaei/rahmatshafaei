@@ -677,6 +677,41 @@ isOneToOne: false
               "detail": string,"kind": string,"local_date": string,"user_id": string
             }[]
                            },
+"search_foods":
+{ Args: { "p_limit"?: number,"p_query": string }; Returns: {
+              "allergens": (string)[],
+"allergens_known": boolean,
+"barcode": string | null,
+"brand": string | null,
+"canonical_name": string,
+"carbs_per_100g": number | null,
+"category": Database["public"]['Enums']["grocery_category"],
+"created_at": string,
+"diet_tags": (string)[],
+"fat_per_100g": number | null,
+"fiber_per_100g": number | null,
+"id": string,
+"image_credit": string | null,
+"image_path": string | null,
+"image_url": string | null,
+"is_archived": boolean,
+"kcal_per_100g": number | null,
+"name": string,
+"owner_id": string | null,
+"preparation": Database["public"]['Enums']["food_preparation"],
+"protein_per_100g": number | null,
+"source": Database["public"]['Enums']["food_source"],
+"source_note": string | null,
+"source_ref": string | null,
+"updated_at": string,
+"verification": Database["public"]['Enums']["verification_status"]
+            }[]
+                          SetofOptions: {
+        from: "*"
+        to: "foods"
+        isOneToOne: false
+        isSetofReturn: true
+      } },
 "set_active_program":
 { Args: { "p_program_id": string }; Returns: undefined
                            },

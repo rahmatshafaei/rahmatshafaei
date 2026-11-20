@@ -1,0 +1,54 @@
+name: FormaFit food import
+
+# Fetches Livsmedelsverket's food database (CC BY 4.0), checks that the generated migration applies
+# to a fresh database, and commits it to the branch the run started from. Start it by hand
+# (Actions → FormaFit food import → Run workflow) or by pushing a branch named food-import/<name>.
+on:
+  workflow_dispatch:
+  push:
+    branches: ["food-import/**"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: formafit-food-import-${{ github.ref }}
+
+defaults:
+  run:
+    working-directory: formafit
+
+jobs:
+  import:
+    name: Import Livsmedelsverket foods
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: formafit/package-lock.json
+
+      - name: Fetch the food database and write the migration
+        run: node scripts/import-livsmedelsverket.mjs
+
+      - name: Check that all migrations apply to a fresh database
+        run: |
+          npm ci
+          npx supabase db start
+          docker exec supabase_db_formafit psql -U postgres -tAc \
+            "select count(*) || ' verified Livsmedelsverket foods' from public.foods where source = 'livsmedelsverket'"
+
+      - name: Commit the migration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add supabase/migrations
+          if git diff --cached --quiet; then
+            echo "The food database has not changed."
+            exit 0
+          fi
+          git commit -m "Import Livsmedelsverket's food database (CC BY 4.0)"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
